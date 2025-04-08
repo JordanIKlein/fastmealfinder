@@ -1,0 +1,131 @@
+/* General Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: #f9f9f9;
+    color: #333;
+}
+
+/* Header Section */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #4b4b4b;
+    color: #fff;
+    padding: 10px 20px;
+}
+
+header .logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+header nav ul {
+    list-style: none;
+    display: flex;
+    gap: 20px;
+}
+
+header nav ul li a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 1rem;
+}
+
+header .search {
+    display: flex;
+}
+
+header .search input {
+    padding: 5px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 3px 0 0 3px;
+}
+
+header .search button {
+    padding: 5px 10px;
+    font-size: 1rem;
+    border: none;
+    background-color: #333;
+    color: #fff;
+    border-radius: 0 3px 3px 0;
+    cursor: pointer;
+}
+
+header .search button:hover {
+    background-color: #555;
+}
+
+/* Main Layout */
+main {
+    display: grid;
+    grid-template-columns: 1fr 3fr 1fr;
+    gap: 20px;
+    padding: 20px;
+    flex: 1;
+}
+
+/* Sidebar */
+.sidebar {
+    background-color: #ececec;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.sidebar ul {
+    list-style: none;
+}
+
+.sidebar ul li {
+    padding: 10px 0;
+    border-bottom: 1px solid #ccc;
+    font-weight: bold;
+}
+
+/* Content Area */
+.content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+/* Right Panel */
+.right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.right-panel .trending,
+.right-panel .favorites {
+    background-color: #ececec;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.right-panel h3 {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+}
+
+.right-panel ul {
+    list-style: none;
+}
+
+.right-panel ul li {
+    padding: 5px 0;
+    font-size: 0.9rem;
+    border-bottom: 1px solid #ccc;
+}
