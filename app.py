@@ -6,6 +6,7 @@ from pool_connection import DatabasePoolConnection
 import math
 import os
 import logging
+import traceback
 
 
 app = Flask(__name__)
@@ -256,8 +257,8 @@ def autocomplete():
         ])
 
     except Exception as e:
-        print("ERROR:", e)  # Log error in terminal
-        return jsonify({"error": str(e)}), 500
+        logging.error("ERROR: %s", traceback.format_exc())  # Log detailed error message
+        return jsonify({"error": "An internal error has occurred!"}), 500
 
 @app.route('/search', methods=['GET'])
 def search():
