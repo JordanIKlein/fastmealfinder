@@ -1,6 +1,6 @@
 # Fast Meal Finder 🍟
 Location: https://www.fastmealfinder.com
 
-Upcoming Project:
-- Current Work (coming-soon): Coming Soon Page.
-- Upcoming Work (initial-launch): Beta Product Release.
+Changelog:
+- v1.0 (coming-soon): Coming Soon Page. Released with HTTPS. **12/17/2024**
+- v1.1 Upcoming Work (initial-launch): Beta Product Release. **TBD**

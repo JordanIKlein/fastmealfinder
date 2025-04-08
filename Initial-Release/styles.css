@@ -6,30 +6,18 @@
   font-family: Arial, sans-serif;
 }
 
-/* Background Animation */
-#background-animation {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -1;
-  background: #f0f0f0; /* Fallback background */
+/* Body Layout */
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 /* Header Styles */
 header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   background-color: #e0e0e0;
   padding: 10px 20px;
   border-bottom: 2px solid #b0b0b0;
-}
-
-header .logo {
-  font-size: 1.5em;
-  font-weight: bold;
 }
 
 header nav ul {
@@ -69,20 +57,34 @@ header nav ul li a {
   border-radius: 5px;
 }
 
-/* Main Map Section */
+/* Main Section */
 main {
+  position: relative; /* Parent for canvas positioning */
+  flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 60vh;
+  overflow: hidden;
 }
 
+/* Canvas */
+#emojiCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1; /* Send canvas to the background */
+  pointer-events: none; /* Prevent interaction with canvas */
+  background: linear-gradient(to bottom, #FFD580, #FF0040);
+}
+
+/* Map Placeholder */
 .map-placeholder {
   width: 80%;
   height: 80%;
-  background-color: #e0e0e0;
+  background: transparent; /* Remove background */
   border: 2px solid #b0b0b0;
-  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -101,6 +103,8 @@ footer {
   background-color: #f0f0f0;
   border-top: 2px solid #b0b0b0;
 }
+
+
 
 
 

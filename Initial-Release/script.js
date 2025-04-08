@@ -17,9 +17,9 @@ class Particle {
     constructor() {
         this.x = Math.random() * canvas.width; // Random initial position (x-axis)
         this.y = Math.random() * canvas.height; // Random initial position (y-axis)
-        this.size = Math.random() * 40 + 10; // Random size between 10px and 50px
-        this.speedX = Math.random() * 1.5 - 0.75; // Random horizontal speed (-0.75 to 0.75)
-        this.speedY = Math.random() * 1.5 - 0.75; // Random vertical speed (-0.75 to 0.75)
+        this.size = Math.random() * 20 + 20; // Random size between 10px and 50px
+        this.speedX = (Math.random() * 0.5) - 0.25; // Random horizontal speed (-0.25 to 0.25)
+        this.speedY = (Math.random() * 0.5) - 0.25; // Random vertical speed (-0.25 to 0.25)
         this.emoji = emojis[Math.floor(Math.random() * emojis.length)]; // Random emoji
     }
 
@@ -89,6 +89,8 @@ window.addEventListener('resize', () => {
 // Initialize and start animation
 initParticles();
 animateParticles();
+
+
 
 
 
