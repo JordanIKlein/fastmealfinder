@@ -1,0 +1,704 @@
+{% extends "base.html" %}
+{% block content %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Explore Locations</title>
+    <!-- Revert back to the original font -->
+    <link rel="preconnect" href="https://a.basemaps.cartocdn.com">
+    <link rel="dns-prefetch" href="https://a.basemaps.cartocdn.com">    
+    <style>
+      /* Remove outline debugging - this was causing visual confusion */
+      /* * {
+        outline: 1px solid rgba(255,0,0,0.5);
+      } */
+
+      html, body {
+        height: 100%;
+        overflow-x: hidden;
+      }
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+      }
+
+      /* Address Search Bar */
+      .address-search-bar {
+        display: flex;
+        align-items: center;
+        margin: 10px;
+        background-color: #f8f8f8;
+        padding: 10px;
+        border-radius: 8px;
+      }
+
+      .address-search-bar label {
+        font-weight: bold;
+        margin-right: 10px;
+      }
+
+      /* Address Search Bar Input */
+      .address-search-bar input[type="text"] {
+        width: 100%; /* Makes it responsive */
+        max-width: 300px; /* Prevents it from growing too large */
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+        box-sizing: border-box; /* Ensures padding and border are included in width */
+      }
+
+
+      .address-search-bar button {
+        padding: 8px 12px;
+        background-color: black;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .address-search-bar button:hover {
+        background-color: darkred;
+      }
+
+      /* Fix for explore container - using calc for dynamic height */
+      .explore-container {
+          display: flex;
+          width: 100%;
+          height: calc(100vh - 170px); /* Subtract navbar height + some padding */
+          overflow: hidden; /* Prevents child elements from spilling out */
+          position: relative;
+      }
+      
+      /* Fix for content container */
+      .content {
+          height: calc(100vh - 125px); /* Adjust based on navbar height */
+          overflow: hidden;
+          padding: 0; /* Remove padding that might cause expansion */
+      }
+      
+      /* Fix for map sizing */
+      #map {
+          flex-grow: 1;
+          height: 100%;
+          width: 100%;
+          max-width: 100%;
+          max-height: 100%;
+          box-sizing: border-box;
+      }
+      
+      #map.full-width {
+        flex-grow: 1;
+      }
+      
+      #map.shrinked {
+        flex-grow: 0;
+        width: calc(100% - 250px);
+      }
+      
+      .map-expanded {
+        margin-right: 0 !important;
+      }
+      
+      /* Filter bar (visible by default) */
+      .filter-bar {
+        width: 250px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        padding: 15px;
+        transition: width 0.3s ease, padding 0.3s ease;
+        overflow: hidden;
+        height: 100%;
+      }
+      
+      .filter-bar.open {
+        transform: translateX(250px);
+      }
+      
+      .filter-bar.closed {
+        width: 0;
+        padding: 0;
+        margin: 0;
+      }
+      
+      .filter-header {
+        cursor: pointer;
+      }
+
+      .filter-header h2 {
+        margin: 0 0 10px;
+        font-size: 1.3rem;
+        text-align: center;
+      }
+
+      .filter-group {
+        margin-bottom: 15px;
+      }
+
+      .filter-group label {
+        font-weight: bold;
+        display: block;
+        margin-bottom: 5px;
+        font-size: 0.9rem;
+        color: #333;
+      }
+
+      .filter-group input[type="text"] {
+        width: 100%;
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+        margin-bottom: 10px;
+      }
+
+      /* Company and Cuisine checkboxes */
+      #companyFilter, #cuisineFilter {
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 5px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      #companyFilter label, #cuisineFilter label {
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        padding: 5px 0;
+        text-align: left;
+      }
+
+      #companyFilter input[type="checkbox"], #cuisineFilter input[type="checkbox"] {
+        margin-right: 10px;
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+      }
+
+      /* Apply and Clear buttons */
+      .filter-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
+      }
+
+      .filter-buttons button {
+        width: 48%;
+        padding: 10px;
+        background-color: red;
+        color: white;
+        font-weight: bold;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      .filter-buttons button:hover {
+        background-color: darkred;
+      }
+
+      #companySearch,
+      #cuisineSearch {
+        width: 80% !important;
+      }
+
+      /* Typeahead suggestion styling */
+      .tt-menu {
+        background-color: #fff;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        width: 300px;
+        font-size: 14px;
+        margin-top: 2px;
+        padding: 5px;
+        z-index: 9999 !important;
+        position: absolute;
+      }
+
+      .tt-suggestion {
+        padding: 8px;
+        cursor: pointer;
+      }
+
+      .tt-suggestion:hover {
+        background-color: #eee;
+      }
+
+      .filter-group-header {
+        cursor: pointer;
+      }
+
+      .filter-group-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        text-align: left;
+      }
+
+      /* Custom popup styling */
+      .custom-popup .leaflet-popup-tip {
+        display: none;
+      }
+
+      /* New Custom Marker Styling */
+      .custom-marker {
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        box-sizing: border-box; /* Ensures border is included in width/height */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: white;
+        border: 3px solid #333;
+        box-shadow: 0px 0px 8px rgba(0,0,0,0.3);
+      }
+
+      .marker-circle {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background-size: cover;
+        background-position: center;
+      }
+
+      /* New Custom Popup Content Styling */
+      .custom-popup-content {
+        font-family: Arial, sans-serif;
+        max-width: 250px;
+        padding: 10px;
+      }
+      .custom-popup-content h3 {
+        margin: 0;
+        font-size: 18px;
+        color: #333;
+      }
+      .custom-popup-content p {
+        margin: 5px 0;
+        font-size: 14px;
+        color: #555;
+      }
+      .custom-popup-content button {
+        margin-top: 8px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 5px;
+        cursor: pointer;
+        width: 100%;
+      }
+      .custom-popup-content button:hover {
+        background-color: #0056b3;
+      }
+      #hamburger {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(255, 255, 255, 0.8);
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        z-index: 1000;
+        padding: 5px 8px;
+        border-radius: 4px;
+        display: none; /* Initially hidden when filter is open */
+      }
+      /* Shrink and style the actual Leaflet popup container */
+      .custom-popup .leaflet-popup-content-wrapper {
+        max-width: 220px; /* Controls the visual popup width */
+        padding: 10px;
+        font-size: 0.9rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+      }
+
+      /* Mobile responsiveness */
+      @media (max-width: 600px) {
+        /* Custom Popup for mobile */
+        .custom-popup .leaflet-popup-content-wrapper {
+          max-width: 180px;
+          font-size: 0.8rem;
+        }
+        
+        .custom-popup-content button {
+          font-size: 0.75rem;
+          padding: 6px 8px;
+        }
+
+        /* Explore container adjustments */
+        .explore-container {
+          position: relative;
+          height: calc(100vh - 130px); /* Adjusted for mobile */
+          overflow: hidden; /* Prevent extra scrollbars */
+        }
+
+        /* Map adjustments */
+        #map {
+          width: 100%;
+          height: 100%; /* Full height within container */
+          border: none;
+        }
+
+        /* Filter bar adjustments */
+        .filter-bar {
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          right: 10px; /* Prevent overflow */
+          max-height: 90%;
+          background-color: rgba(255, 255, 255, 0.95);
+          z-index: 1005;
+          overflow-y: auto;
+          padding: 15px;
+          border-radius: 8px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          transition: transform 0.3s ease;
+        }
+
+        body {
+          overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+      }
+
+    </style>
+    <!-- Leaflet CSS/JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- jQuery & Typeahead.js -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/typeahead.js@0.11.1/dist/typeahead.bundle.js"></script>
+  </head>
+  <body>
+    <!-- Address Search Bar -->
+    <div class="address-search-bar">
+      <label for="address-search">Location:</label>
+      <input type="text" id="address-search" placeholder="Enter zipcode or city..." />
+    </div>
+    <div class="explore-container">
+      <div id="map">
+        <button id="hamburger" onclick="toggleFilters()">☰</button>
+      </div>
+      <div class="filter-bar closed" id="filterBar">
+        <div class="filter-header" onclick="toggleFilters()">
+          <h2>Filters   &#9776;</h2>
+        </div>
+        <div id="filter-content">
+          <!-- Company Filter (Collapsible) -->
+          <div class="filter-group">
+            <div class="filter-group-header" onclick="toggleFilterGroup('company-group', 'companyArrow')">
+              <h3>Search Company <span id="companyArrow">&#9652;</span></h3>
+            </div>            
+            <div id="company-group" style="display: block;">
+              <input type="text" id="companySearch" placeholder="Search companies..." />
+              <div id="companyFilter">
+                <!-- Company checkboxes populated dynamically -->
+              </div>
+            </div>
+          </div>
+          <!-- Cuisine Filter (Collapsible) -->
+          <div class="filter-group">
+            <div class="filter-group-header" onclick="toggleFilterGroup('cuisine-group', 'cuisineArrow')">
+              <h3>Search Cuisine <span id="cuisineArrow">&#9652;</span></h3>
+            </div> 
+            <div id="cuisine-group" style="display: block;">
+              <input type="text" id="cuisineSearch" placeholder="Search cuisines..." />
+              <div id="cuisineFilter">
+                <!-- Cuisine checkboxes populated dynamically -->
+              </div>
+            </div>
+          </div>
+          <div class="filter-buttons">
+            <button onclick="applyFilters()">Apply Filters</button>
+            <button id="clearButton" onclick="clearFilters()" disabled>Clear Filters</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.addEventListener('resize', () => {
+        setTimeout(() => map.invalidateSize(), 300);
+      });
+
+      /*******************************
+       * 2) FILTER HELPERS
+       *******************************/
+      let appliedFilters = { companies: [], cuisines: [] };
+    
+      function arraysEqual(a, b) {
+        if (a.length !== b.length) return false;
+        const A = [...a].sort(), B = [...b].sort();
+        return A.every((v, i) => v === B[i]);
+      }
+    
+      function updateOppositeGroup() {
+        const compChecked = !!document.querySelector('#companyFilter input:checked');
+        const cuisChecked = !!document.querySelector('#cuisineFilter input:checked');
+        document.querySelectorAll('#cuisineFilter input')
+                .forEach(cb => cb.disabled = compChecked);
+        document.querySelectorAll('#companyFilter input')
+                .forEach(cb => cb.disabled = cuisChecked);
+      }
+    
+      function attachCheckboxListeners() {
+        document.querySelectorAll('#companyFilter input, #cuisineFilter input')
+                .forEach(cb => cb.addEventListener('change', updateOppositeGroup));
+      }
+    
+      /*******************************
+       * 3) TYPEAHEAD ADDRESS SEARCH
+       *******************************/
+      $(document).ready(function() {
+        const addressInput = $('#address-search');
+    
+        addressInput.typeahead({ minLength: 2, highlight: true }, {
+          name: 'addresses',
+          source: (query, sync, async) => {
+            fetch(`https://fastmealfinder.com/autocomplete?q=${encodeURIComponent(query)}`)
+              .then(r => r.json())
+              .then(data => {
+                const list = data.map(r => ({
+                  display_name: `${r.city}, ${r.state} ${r.zip}`,
+                  lat: r.lat, lon: r.lon
+                }));
+                async(list.map(x => x.display_name));
+                addressInput.data('addressData', list);
+              })
+              .catch(e => console.error('Autocomplete error:', e));
+          }
+        });
+    
+        addressInput.on('typeahead:selected', (_, selection) => {
+          const list = addressInput.data('addressData');
+          const found = list.find(x => x.display_name === selection);
+          if (found) searchAddress(found);
+          else alert('Selected address not found!');
+        });
+      });
+    
+      function searchAddress(obj = null) {
+        if (obj?.lat && obj?.lon) {
+          map.setView([obj.lat, obj.lon], 12);
+          return;
+        }
+        const q = document.getElementById('address-search').value;
+        fetch(`https://fastmealfinder.com/search?q=${encodeURIComponent(q)}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.lat && data.lon) map.setView([data.lat, data.lon], 12);
+            else alert('Address not found!');
+          })
+          .catch(e => console.error('Search error:', e));
+      }
+    
+      /*******************************
+       * 4) MARKERS & POPUPS
+       *******************************/
+      let markers = [];
+      function renderMarkers(data) {
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+        data.forEach(loc => {
+          const logo = `/static/${loc.companyid}.png`;
+          const icon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div class="marker-circle" style="background-image:url('${logo}')"></div>`,
+            iconSize: [40,40], iconAnchor: [20,20]
+          });
+          const m = L.marker([loc.latitude, loc.longitude], { icon }).addTo(map);
+    
+          let hoursHTML = '';
+          if (loc.hours && !/^(none|nan)$/i.test(loc.hours.trim())) {
+            hoursHTML = `<p><strong>Hours:</strong> ${loc.hours}</p>`;
+          }
+    
+          const popupHTML = `
+            <div class="custom-popup-content">
+              <h3>${loc.companyname}</h3>
+              <p>${loc.address}<br>${loc.city}, ${loc.state} ${loc.zipcode}</p>
+              <p><strong>Cuisine:</strong> ${loc.cuisine_type}</p>
+              ${hoursHTML}
+              <button onclick="window.open('https://maps.google.com/?q=${loc.latitude},${loc.longitude}','_blank')">
+                Get Directions
+              </button>
+            </div>
+          `;
+    
+          m.on('click', () => {
+            L.popup({ autoPan: false, className: 'custom-popup' })
+             .setLatLng(m.getLatLng())
+             .setContent(popupHTML)
+             .openOn(map);
+          });
+    
+          markers.push(m);
+        });
+      }
+    
+      /*******************************
+       * 5) LOAD & APPLY FILTERS
+       *******************************/
+      function loadFilters() {
+        fetch('/get_companies_and_cuisines')
+          .then(r => r.json())
+          .then(data => {
+            const cf = document.getElementById('companyFilter'),
+                  uf = document.getElementById('cuisineFilter');
+            cf.innerHTML = ''; uf.innerHTML = '';
+            data.companies.forEach(c => {
+              const lbl = document.createElement('label'),
+                    cb  = document.createElement('input');
+              lbl.textContent = c.companyname;
+              cb.type = 'checkbox'; cb.value = c.companyname; cb.name = 'company';
+              lbl.appendChild(cb); cf.appendChild(lbl);
+            });
+            data.cuisines.forEach(c => {
+              const lbl = document.createElement('label'),
+                    cb  = document.createElement('input');
+              lbl.textContent = c.type;
+              cb.type = 'checkbox'; cb.value = c.type; cb.name = 'cuisine';
+              lbl.appendChild(cb); uf.appendChild(lbl);
+            });
+            attachCheckboxListeners();
+          })
+          .catch(e => console.error('Filter load error:', e));
+      }
+    
+      function applyFilters() {
+        const cs = Array.from(document.querySelectorAll('#companyFilter input:checked')).map(cb => cb.value),
+              cu = Array.from(document.querySelectorAll('#cuisineFilter input:checked')).map(cb => cb.value);
+        if (!cs.length && !cu.length) return;
+        if (arraysEqual(cs, appliedFilters.companies) && arraysEqual(cu, appliedFilters.cuisines)) return;
+        appliedFilters = { companies: cs, cuisines: cu };
+        document.getElementById('clearButton').disabled = false;
+        fetchLocations();
+        toggleFilters();
+      }
+    
+      function clearFilters() {
+        if (!appliedFilters.companies.length && !appliedFilters.cuisines.length) return;
+        document.querySelectorAll('#companyFilter input, #cuisineFilter input')
+                .forEach(cb => { cb.checked = false; cb.disabled = false; });
+        appliedFilters = { companies: [], cuisines: [] };
+        document.getElementById('companySearch').value = '';
+        document.getElementById('cuisineSearch').value = '';
+        document.getElementById('clearButton').disabled = true;
+        fetchLocations();
+      }
+    
+      function fetchLocations() {
+        if (!window.map) return;
+        const b = map.getBounds();
+        let url = `/get_filtered_locations`
+                + `?southWestLng=${b.getWest()}&southWestLat=${b.getSouth()}`
+                + `&northEastLng=${b.getEast()}&northEastLat=${b.getNorth()}`;
+        appliedFilters.companies.forEach(c => url += `&company[]=${encodeURIComponent(c)}`);
+        appliedFilters.cuisines.forEach(c => url += `&cuisine[]=${encodeURIComponent(c)}`);
+        fetch(url)
+          .then(r => r.json())
+          .then(renderMarkers)
+          .catch(e => console.error('Fetch locations error:', e));
+      }
+    
+      /*******************************
+       * 6) UI TOGGLES & SEARCH INPUTS
+       *******************************/
+      function toggleFilters() {
+        const fb = document.getElementById('filterBar'),
+              hb = document.getElementById('hamburger');
+        if (!fb || !hb) return;
+        fb.classList.toggle('closed');
+        hb.style.display = fb.classList.contains('closed') ? 'block' : 'none';
+        setTimeout(() => map.invalidateSize(), 300);
+      }
+    
+      function toggleFilterGroup(groupId, arrowId) {
+        const g = document.getElementById(groupId),
+              a = document.getElementById(arrowId);
+        if (!g || !a) return;
+        if (g.style.display === 'none') {
+          g.style.display = 'block'; a.innerHTML = '&#9652;';
+        } else {
+          g.style.display = 'none';  a.innerHTML = '&#9662;';
+        }
+      }
+    
+      document.addEventListener('DOMContentLoaded', () => {
+        const fb = document.getElementById('filterBar'),
+              hb = document.getElementById('hamburger');
+        if (fb && hb) hb.style.display = fb.classList.contains('closed') ? 'block' : 'none';
+    
+        const cs = document.getElementById('companySearch');
+        if (cs) cs.addEventListener('input', function() {
+          const term = this.value.toLowerCase();
+          document.querySelectorAll('#companyFilter label')
+                  .forEach(l => l.style.display = l.textContent.toLowerCase().includes(term) ? '' : 'none');
+        });
+    
+        const cu = document.getElementById('cuisineSearch');
+        if (cu) cu.addEventListener('input', function() {
+          const term = this.value.toLowerCase();
+          document.querySelectorAll('#cuisineFilter label')
+                  .forEach(l => l.style.display = l.textContent.toLowerCase().includes(term) ? '' : 'none');
+        });
+      });
+      /*******************************
+       * 1) LAZY MAP INIT + PLACEHOLDER REMOVAL + RETINA‑OFF + DEBOUNCE
+       *******************************/
+       function initMap() {
+          // remove placeholder so Leaflet can paint tiles
+          const ph = document.querySelector('#map img[data-placeholder]');
+          if (ph) ph.remove();
+          // initialize map with canvas renderer & retina off
+          window.map = L.map('map', { preferCanvas: true }).setView([42.3601, -71.0589], 12);
+      
+          // add tile layer WITHOUT @2x tiles
+          const tiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+            {
+              detectRetina: false,
+              updateWhenIdle: true,
+              updateWhenZooming: false,
+              maxZoom: 16,
+              minZoom: 10,
+              attribution: '&copy; OpenStreetMap'
+            }
+          ).addTo(map);
+      
+          // once the first real tile arrives, remove placeholder (if still there)
+          tiles.on('load', () => {
+            const p = document.querySelector('#map img[data-placeholder]');
+            if (p) p.remove();
+            map.invalidateSize();
+          });
+      
+          // your original startup calls
+          const initialLocations = {{ locations|tojson|safe }};
+          renderMarkers(initialLocations);
+          loadFilters();
+          fetchLocations();
+      
+          // debounce moveend → fetchLocations
+          let fetchTimeout;
+          const DEBOUNCE_MS = 300;
+          map.on('moveend', () => {
+            clearTimeout(fetchTimeout);
+            fetchTimeout = setTimeout(fetchLocations, DEBOUNCE_MS);
+          });
+        }
+      
+        // kick off map init when browser is idle (or fallback to load)
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(initMap);
+        } else {
+          window.addEventListener('load', initMap);
+        }
+    </script>    
+  </body>
+</html>
+{% endblock %}
