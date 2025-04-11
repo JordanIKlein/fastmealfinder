@@ -10,11 +10,6 @@
     <link rel="preconnect" href="https://a.basemaps.cartocdn.com">
     <link rel="dns-prefetch" href="https://a.basemaps.cartocdn.com">    
     <style>
-      /* Remove outline debugging - this was causing visual confusion */
-      /* * {
-        outline: 1px solid rgba(255,0,0,0.5);
-      } */
-
       html, body {
         height: 100%;
         overflow-x: hidden;
@@ -22,6 +17,8 @@
       body {
         margin: 0;
         font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
       }
 
       /* Address Search Bar */
@@ -32,6 +29,8 @@
         background-color: #f8f8f8;
         padding: 10px;
         border-radius: 8px;
+        z-index: 1001; /* Ensure it's above map */
+        position: relative; /* Add position context */
       }
 
       .address-search-bar label {
@@ -65,30 +64,30 @@
         background-color: darkred;
       }
 
-      /* Fix for explore container - using calc for dynamic height */
+      /* Fix for explore container - using flex layout */
       .explore-container {
           display: flex;
+          flex: 1;
           width: 100%;
-          height: calc(100vh - 170px); /* Subtract navbar height + some padding */
-          overflow: hidden; /* Prevents child elements from spilling out */
           position: relative;
+          overflow: hidden;
       }
       
       /* Fix for content container */
       .content {
-          height: calc(100vh - 125px); /* Adjust based on navbar height */
+          flex: 1;
+          display: flex;
+          flex-direction: column;
           overflow: hidden;
-          padding: 0; /* Remove padding that might cause expansion */
       }
       
       /* Fix for map sizing */
       #map {
-          flex-grow: 1;
+          flex: 1;
           height: 100%;
           width: 100%;
-          max-width: 100%;
-          max-height: 100%;
           box-sizing: border-box;
+          position: relative;
       }
       
       #map.full-width {
@@ -104,7 +103,7 @@
         margin-right: 0 !important;
       }
       
-      /* Filter bar (visible by default) */
+      /* Filter bar (initially closed as per class) */
       .filter-bar {
         width: 250px;
         background-color: #fff;
@@ -117,7 +116,8 @@
       }
       
       .filter-bar.open {
-        transform: translateX(250px);
+        width: 250px;
+        padding: 15px;
       }
       
       .filter-bar.closed {
@@ -134,6 +134,7 @@
         margin: 0 0 10px;
         font-size: 1.3rem;
         text-align: center;
+        color: black;
       }
 
       .filter-group {
@@ -236,6 +237,7 @@
       }
 
       .filter-group-header h3 {
+        padding-top: 10px;
         margin: 0;
         font-size: 1.1rem;
         text-align: left;
@@ -308,7 +310,6 @@
         z-index: 1000;
         padding: 5px 8px;
         border-radius: 4px;
-        display: none; /* Initially hidden when filter is open */
       }
       /* Shrink and style the actual Leaflet popup container */
       .custom-popup .leaflet-popup-content-wrapper {
@@ -335,7 +336,7 @@
         /* Explore container adjustments */
         .explore-container {
           position: relative;
-          height: calc(100vh - 130px); /* Adjusted for mobile */
+          flex: 1;
           overflow: hidden; /* Prevent extra scrollbars */
         }
 
@@ -349,17 +350,28 @@
         /* Filter bar adjustments */
         .filter-bar {
           position: absolute;
-          top: 10px;
-          left: 10px;
-          right: 10px; /* Prevent overflow */
-          max-height: 90%;
+          top: 0;
+          right: 0; /* Position on right side */
+          bottom: 0;
+          width: 80%; /* Take 80% of screen width on mobile */
+          max-width: 300px;
+          height: 100%;
           background-color: rgba(255, 255, 255, 0.95);
           z-index: 1005;
           overflow-y: auto;
           padding: 15px;
-          border-radius: 8px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          border-radius: 8px 0 0 8px; /* Round only left corners */
+          box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
+          transform: translateX(100%); /* Start off-screen to the right */
           transition: transform 0.3s ease;
+        }
+
+        .filter-bar.open {
+          transform: translateX(0); /* Slide in from right */
+        }
+
+        .filter-bar.closed {
+          transform: translateX(100%); /* Move off-screen to the right */
         }
 
         body {
@@ -387,13 +399,17 @@
       </div>
       <div class="filter-bar closed" id="filterBar">
         <div class="filter-header" onclick="toggleFilters()">
-          <h2>Filters   &#9776;</h2>
+          <h2>Toggle Filters         &#9776;</h2>
+        </div>
+        <div class="filter-buttons">
+          <button onclick="applyFilters()">Apply</button>
+          <button id="clearButton" onclick="clearFilters()" disabled>Clear</button>
         </div>
         <div id="filter-content">
           <!-- Company Filter (Collapsible) -->
           <div class="filter-group">
             <div class="filter-group-header" onclick="toggleFilterGroup('company-group', 'companyArrow')">
-              <h3>Search Company <span id="companyArrow">&#9652;</span></h3>
+              <h3>Search Company <span id="companyArrow">&#9650;</span></h3>
             </div>            
             <div id="company-group" style="display: block;">
               <input type="text" id="companySearch" placeholder="Search companies..." />
@@ -405,7 +421,7 @@
           <!-- Cuisine Filter (Collapsible) -->
           <div class="filter-group">
             <div class="filter-group-header" onclick="toggleFilterGroup('cuisine-group', 'cuisineArrow')">
-              <h3>Search Cuisine <span id="cuisineArrow">&#9652;</span></h3>
+              <h3>Search Cuisine <span id="cuisineArrow">&#9650;</span></h3>
             </div> 
             <div id="cuisine-group" style="display: block;">
               <input type="text" id="cuisineSearch" placeholder="Search cuisines..." />
@@ -413,10 +429,6 @@
                 <!-- Cuisine checkboxes populated dynamically -->
               </div>
             </div>
-          </div>
-          <div class="filter-buttons">
-            <button onclick="applyFilters()">Apply Filters</button>
-            <button id="clearButton" onclick="clearFilters()" disabled>Clear Filters</button>
           </div>
         </div>
       </div>
@@ -429,8 +441,6 @@
       /*******************************
        * 2) FILTER HELPERS
        *******************************/
-      let appliedFilters = { companies: [], cuisines: [] };
-    
       function arraysEqual(a, b) {
         if (a.length !== b.length) return false;
         const A = [...a].sort(), B = [...b].sort();
@@ -500,6 +510,27 @@
       /*******************************
        * 4) MARKERS & POPUPS
        *******************************/
+       function getCuisineIcon(cuisineType) {
+        // Handle null or undefined
+        if (!cuisineType) return '🍽️';
+        
+        // Convert to lowercase
+        const cuisine = cuisineType.toLowerCase().trim();
+        
+        // Use lowercase in your string comparisons
+        if (cuisine.includes('burger')) return '🍔';
+        if (cuisine.includes('chicken')) return '🍗';
+        if (cuisine.includes('chinese')) return '🥡';
+        if (cuisine.includes('dessert')) return '🍰';
+        if (cuisine.includes('drinks')) return '☕';
+        if (cuisine.includes('mexican')) return '🌮';
+        if (cuisine.includes('pizza')) return '🍕';
+        if (cuisine.includes('sandwich')) return '🥪';
+        if (cuisine.includes('snack')) return '🍿';
+        
+        // Default icon
+        return '🍽️';
+      }
       let markers = [];
       function renderMarkers(data) {
         markers.forEach(m => map.removeLayer(m));
@@ -512,31 +543,40 @@
             iconSize: [40,40], iconAnchor: [20,20]
           });
           const m = L.marker([loc.latitude, loc.longitude], { icon }).addTo(map);
-    
+
           let hoursHTML = '';
           if (loc.hours && !/^(none|nan)$/i.test(loc.hours.trim())) {
             hoursHTML = `<p><strong>Hours:</strong> ${loc.hours}</p>`;
           }
-    
+
+          // Get the cuisine icon based on the cuisine type
+          const cuisineIcon = getCuisineIcon(loc.cuisine_type);
+
           const popupHTML = `
             <div class="custom-popup-content">
               <h3>${loc.companyname}</h3>
-              <p>${loc.address}<br>${loc.city}, ${loc.state} ${loc.zipcode}</p>
-              <p><strong>Cuisine:</strong> ${loc.cuisine_type}</p>
+              <p><strong>Cuisine:</strong>${cuisineIcon} ${loc.cuisine_type}</p>
               ${hoursHTML}
-              <button onclick="window.open('https://maps.google.com/?q=${loc.latitude},${loc.longitude}','_blank')">
-                Get Directions
+              <button onclick="window.open('https://maps.google.com/?q=${loc.latitude},${loc.longitude}','_self')">
+                Directions
               </button>
             </div>
           `;
-    
+
           m.on('click', () => {
-            L.popup({ autoPan: false, className: 'custom-popup' })
-             .setLatLng(m.getLatLng())
-             .setContent(popupHTML)
-             .openOn(map);
+            // First, pan the map to center on the clicked marker
+            map.panTo(m.getLatLng());
+            
+            // Then, after a short delay to allow the pan animation to complete
+            setTimeout(() => {
+              // Create and open popup at the map's center instead of marker position
+              L.popup({ autoPan: false, className: 'custom-popup' })
+                .setLatLng(map.getCenter())
+                .setContent(popupHTML)
+                .openOn(map);
+            }, 300); // 300ms delay to allow pan animation
           });
-    
+
           markers.push(m);
         });
       }
@@ -544,6 +584,39 @@
       /*******************************
        * 5) LOAD & APPLY FILTERS
        *******************************/
+      /*******************************
+       * 5) LOAD & APPLY FILTERS
+       *******************************/
+      // Track both current selections and applied filters
+      let currentSelections = { companies: [], cuisines: [] };
+      let appliedFilters = { companies: [], cuisines: [] };
+
+      // Update the Apply button status based on current selections vs applied filters
+      function updateApplyButtonStatus() {
+        const applyButton = document.querySelector('.filter-buttons button:first-child');
+        if (!applyButton) return;
+        
+        const hasChanges = !arraysEqual(currentSelections.companies, appliedFilters.companies) || 
+                          !arraysEqual(currentSelections.cuisines, appliedFilters.cuisines);
+        
+        // Disable button if no changes
+        applyButton.disabled = !hasChanges;
+      }
+
+      // Update tracked selections whenever a checkbox changes
+      function updateCurrentSelections() {
+        const companyChecks = Array.from(document.querySelectorAll('#companyFilter input:checked')).map(cb => cb.value);
+        const cuisineChecks = Array.from(document.querySelectorAll('#cuisineFilter input:checked')).map(cb => cb.value);
+        
+        currentSelections = { 
+          companies: companyChecks, 
+          cuisines: cuisineChecks 
+        };
+        
+        // Update button states
+        updateApplyButtonStatus();
+      }
+
       function loadFilters() {
         fetch('/get_companies_and_cuisines')
           .then(r => r.json())
@@ -566,31 +639,86 @@
               lbl.appendChild(cb); uf.appendChild(lbl);
             });
             attachCheckboxListeners();
+            // Initialize button states
+            updateApplyButtonStatus();
           })
           .catch(e => console.error('Filter load error:', e));
       }
-    
+
+      // Revise checkbox listeners to track current selections
+      function attachCheckboxListeners() {
+        document.querySelectorAll('#companyFilter input, #cuisineFilter input')
+          .forEach(cb => {
+            cb.addEventListener('change', () => {
+              updateOppositeGroup();
+              updateCurrentSelections();
+            });
+          });
+      }
+
       function applyFilters() {
-        const cs = Array.from(document.querySelectorAll('#companyFilter input:checked')).map(cb => cb.value),
-              cu = Array.from(document.querySelectorAll('#cuisineFilter input:checked')).map(cb => cb.value);
+        // Get current selections
+        const cs = currentSelections.companies;
+        const cu = currentSelections.cuisines;
+        
+        // Check if anything is selected
         if (!cs.length && !cu.length) return;
+        
+        // Check if anything changed
         if (arraysEqual(cs, appliedFilters.companies) && arraysEqual(cu, appliedFilters.cuisines)) return;
-        appliedFilters = { companies: cs, cuisines: cu };
+        
+        // Apply filters
+        appliedFilters = { companies: [...cs], cuisines: [...cu] };
         document.getElementById('clearButton').disabled = false;
+        updateApplyButtonStatus(); // Update apply button status
         fetchLocations();
+        
+        // Close filters panel
         toggleFilters();
       }
-    
+
       function clearFilters() {
         if (!appliedFilters.companies.length && !appliedFilters.cuisines.length) return;
+        
+        // Clear checkboxes
         document.querySelectorAll('#companyFilter input, #cuisineFilter input')
-                .forEach(cb => { cb.checked = false; cb.disabled = false; });
+          .forEach(cb => { cb.checked = false; cb.disabled = false; });
+        
+        // Clear filters and selections
         appliedFilters = { companies: [], cuisines: [] };
+        currentSelections = { companies: [], cuisines: [] };
+        
+        // Reset search inputs
         document.getElementById('companySearch').value = '';
         document.getElementById('cuisineSearch').value = '';
+        
+        // Update buttons
         document.getElementById('clearButton').disabled = true;
+        updateApplyButtonStatus();
+        
+        // Fetch updated results
         fetchLocations();
+        
+        // Close filters panel
+        toggleFilters();
       }
+
+      // Add to your existing DOMContentLoaded event listener
+      document.addEventListener('DOMContentLoaded', function() {
+        // Your existing code...
+        
+        // Initialize the Apply button state
+        const applyButton = document.querySelector('.filter-buttons button:first-child');
+        if (applyButton) {
+          applyButton.disabled = true;
+        }
+        
+        // Make sure Clear button starts disabled if no filters applied
+        const clearButton = document.getElementById('clearButton');
+        if (clearButton) {
+          clearButton.disabled = true;
+        }
+      });
     
       function fetchLocations() {
         if (!window.map) return;
@@ -613,8 +741,18 @@
         const fb = document.getElementById('filterBar'),
               hb = document.getElementById('hamburger');
         if (!fb || !hb) return;
-        fb.classList.toggle('closed');
-        hb.style.display = fb.classList.contains('closed') ? 'block' : 'none';
+        
+        // Toggle between open and closed
+        if(fb.classList.contains('closed')) {
+          fb.classList.remove('closed');
+          fb.classList.add('open');
+          hb.style.display = 'none';
+        } else {
+          fb.classList.remove('open');
+          fb.classList.add('closed');
+          hb.style.display = 'block';
+        }
+        
         setTimeout(() => map.invalidateSize(), 300);
       }
     
@@ -623,16 +761,24 @@
               a = document.getElementById(arrowId);
         if (!g || !a) return;
         if (g.style.display === 'none') {
-          g.style.display = 'block'; a.innerHTML = '&#9652;';
+          g.style.display = 'block'; a.innerHTML = '&#9650;';
         } else {
-          g.style.display = 'none';  a.innerHTML = '&#9662;';
+          g.style.display = 'none';  a.innerHTML = '&#9660;';
         }
       }
     
       document.addEventListener('DOMContentLoaded', () => {
         const fb = document.getElementById('filterBar'),
               hb = document.getElementById('hamburger');
-        if (fb && hb) hb.style.display = fb.classList.contains('closed') ? 'block' : 'none';
+        
+        // Show hamburger when filter is closed
+        if (fb && hb) {
+          if(fb.classList.contains('closed')) {
+            hb.style.display = 'block';
+          } else {
+            hb.style.display = 'none';
+          }
+        }
     
         const cs = document.getElementById('companySearch');
         if (cs) cs.addEventListener('input', function() {
@@ -676,7 +822,6 @@
             if (p) p.remove();
             map.invalidateSize();
           });
-      
           // your original startup calls
           const initialLocations = {{ locations|tojson|safe }};
           renderMarkers(initialLocations);
