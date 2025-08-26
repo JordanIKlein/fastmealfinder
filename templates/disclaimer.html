@@ -1,5 +1,33 @@
-{% extends "base.html" %}
-{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fast Meal Finder - Find Open Restaurants Near You</title>
+  <meta name="description" content="Fast Meal Finder helps you quickly locate open restaurants, drive-thrus, and dine-in options near you. Real-time hours and easy filters.">
+  <meta name="keywords" content="fast food, restaurant finder, open restaurants, drive-thru, dine-in, food locator, late night food">
+  <meta name="author" content="FastMealFinder Team">
+
+  <!-- Viewport for Mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Robots -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Fast Meal Finder - Find Open Restaurants Near You">
+  <meta property="og:description" content="Quickly find restaurants with open drive-thrus or dine-in options near you. Fast, real-time info.">
+  <meta property="og:image" content="https://fastmealfinder.com/static/images/icon.png"> <!-- Update with real image? -->
+  <meta property="og:url" content="https://fastmealfinder.com">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="Fast Meal Finder">
+  <meta name="twitter:title" content="Fast Meal Finder - Open Restaurants Near You">
+  <meta name="twitter:description" content="See which restaurants are open now — including drive-thru and dine-in hours.">
+  <meta name="twitter:image" content="https://fastmealfinder.com/static/images/icon.png"> <!-- Same image as above -->
+</head>
+<body>
   <div class="disclaimer-container">
     <h1>Disclaimer and Notice Regarding Use of Company Logos and Trademarks</h1>
     <h3>Informational Purposes Only</h3>
@@ -32,7 +60,7 @@
         fastmealfinder@gmail.com
     </p>
   </div>
-
+</body>
   <style>
     .disclaimer-container {
       background: white;
@@ -49,4 +77,4 @@
       color: #333;
     }
   </style>
-{% endblock %}
+</html>
