@@ -1,0 +1,2496 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fast Meal Finder - Find Open Restaurants Near You</title>
+  <meta name="description" content="Fast Meal Finder helps you quickly locate open restaurants, drive-thrus, and dine-in options near you. Real-time hours and easy filters.">
+  <meta name="keywords" content="fast food, restaurant finder, open restaurants, drive-thru, dine-in, food locator, late night food">
+  <meta name="author" content="FastMealFinder Team">
+
+  <!-- Viewport for Mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Robots -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Fast Meal Finder - Find Open Restaurants Near You">
+  <meta property="og:description" content="Quickly find restaurants with open drive-thrus or dine-in options near you. Fast, real-time info.">
+  <meta property="og:image" content="https://fastmealfinder.com/static/images/icon.png"> <!-- Update with real image? -->
+  <meta property="og:url" content="https://fastmealfinder.com">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="Fast Meal Finder">
+  <meta name="twitter:title" content="Fast Meal Finder - Open Restaurants Near You">
+  <meta name="twitter:description" content="See which restaurants are open now — including drive-thru and dine-in hours.">
+  <meta name="twitter:image" content="https://fastmealfinder.com/static/images/icon.png"> <!-- Same image as above -->
+</head>
+  <style>
+    /* === CSS Variables for Light & Dark Mode === */
+    :root {
+      --bg-color: #fff;
+      --text-color: #222;
+      --filter-bg: #fff;
+      --filter-shadow: rgba(0, 0, 0, 0.15);
+      --btn-bg: #007bff;
+      --btn-hover-bg: #0056b3;
+      --btn-text: #fff;
+      --marker-open: #28a745;
+      --marker-closed: #dc3545;
+      --market-you: #3388ff;
+      --legend-bg: #fff;
+      --legend-shadow: rgba(0, 0, 0, 0.2);
+      --input-border: #ddd;
+      --input-focus: #007bff;
+      --secondary-btn: #6c757d;
+      --secondary-btn-hover: #5a6268;
+    }
+
+    body.dark {
+      --bg-color: #121212;
+      --text-color: #eee;
+      --filter-bg: #1e1e1e;
+      --filter-shadow: rgba(0, 0, 0, 0.7);
+      --btn-bg: #375a7f;
+      --btn-hover-bg: #2c3e50;
+      --btn-text: #ddd;
+      --marker-open: #51cf66;
+      --marker-closed: #ff6b6b;
+      --legend-bg: #1e1e1e;
+      --legend-shadow: rgba(0, 0, 0, 0.8);
+      --input-border: #444;
+      --input-focus: #375a7f;
+      --secondary-btn: #6c757d;
+      --secondary-btn-hover: #5a6268;
+    }
+
+    /* === Global Styles === */
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      height: 100%;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    #map {
+      height: 100vh;
+      width: 100%;
+      filter: var(--map-filter, none);
+    }
+
+    /* === Filter Toggle Button === */
+    .filter-toggle {
+      position: absolute;
+      top: 10px;
+      left: 120px;
+      height: 50px;
+      z-index: 1100;
+      background-color: var(--btn-bg);
+      color: var(--btn-text);
+      border: none;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px var(--filter-shadow);
+      transition: background-color 0.3s ease;
+      user-select: none;
+    }
+    .filter-toggle:hover {
+      background-color: var(--btn-hover-bg);
+    }
+
+    /* === Dark Mode Toggle Button === */
+    .dark-mode-toggle {
+      position: absolute;
+      top: 10px;
+      left: 215px;
+      z-index: 1100;
+      background-color: var(--btn-bg);
+      color: var(--btn-text);
+      border: none;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px var(--filter-shadow);
+      transition: background-color 0.3s ease;
+      user-select: none;
+    }
+    .dark-mode-toggle:hover {
+      background-color: var(--btn-hover-bg);
+    }
+
+    /* === Filter Panel Styles === */
+    .filter-panel {
+      position: fixed;
+      top: 100px;
+      left: -350px;
+      width: 320px;
+      height: calc(100% - 120px);
+      background-color: var(--filter-bg);
+      box-shadow: 3px 0 15px var(--filter-shadow);
+      z-index: 1200;
+      transition: left 0.3s ease-in-out;
+      padding: 25px;
+      box-sizing: border-box;
+      border-radius: 0 10px 10px 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-panel.open {
+      left: 0;
+    }
+
+    .filter-panel h3 {
+      margin-top: 0;
+      font-weight: 700;
+      font-size: 1.6rem;
+      letter-spacing: 0.03em;
+      color: var(--text-color);
+      margin-bottom: 25px;
+      border-bottom: 2px solid var(--btn-bg);
+      padding-bottom: 10px;
+    }
+
+    .filter-group {
+      margin-bottom: 25px;
+    }
+
+    .filter-group label {
+      display: block;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-color);
+      margin-bottom: 8px;
+    }
+
+    .filter-panel select {
+      width: 100%;
+      padding: 12px 15px;
+      font-size: 1rem;
+      border: 2px solid var(--input-border);
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      cursor: pointer;
+      margin-bottom: 5px;
+    }
+
+    .filter-panel select:hover,
+    .filter-panel select:focus {
+      border-color: var(--input-focus);
+    }
+
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      font-size: 1rem;
+      color: var(--text-color);
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.1s ease;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+      margin-right: 12px;
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--btn-bg);
+      transition: accent-color 0.1s ease;
+    }
+    /* === Logo Styles === */
+    .logo {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1300;
+      width: 100px;
+      height: 80px;
+      background: var(--btn-bg);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px var(--btn-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.3s ease;
+    }
+
+    .logo img {
+      width: 90px; /* 944 */
+      height: 70px; /* 766 */
+      object-fit: contain;
+    }
+    
+    /* === Filter Action Buttons === */
+    .filter-actions {
+      margin-top: auto;
+      padding-top: 20px;
+      border-top: 1px solid var(--input-border);
+      display: flex;
+      gap: 10px;
+      flex-direction: column;
+    }
+
+    .filter-btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.1s ease;
+      text-align: center;
+    }
+
+    .filter-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .filter-btn:active {
+      transform: translateY(0);
+    }
+
+    .filter-btn.primary {
+      background-color: var(--btn-bg);
+      color: var(--btn-text);
+    }
+
+    .filter-btn.primary:hover {
+      background-color: var(--btn-hover-bg);
+    }
+
+    .filter-btn.secondary {
+      background-color: var(--secondary-btn);
+      color: var(--btn-text);
+    }
+
+    .filter-btn.secondary:hover {
+      background-color: var(--secondary-btn-hover);
+    }
+
+    /* === Legend Styles === */
+    .legend {
+      background-color: var(--legend-bg);
+      padding: 10px 15px;
+      font-size: 14px;
+      position: absolute;
+      bottom: 80px;
+      left: 10px;
+      z-index: 1000;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px var(--legend-shadow);
+      color: var(--text-color);
+      user-select: none;
+    }
+
+    .legend div {
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+    }
+
+    .legend span {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      border-radius: 50%;
+      border: 2px solid var(--bg-color);
+    }
+    /* === Legend Colors === */
+    .green { background-color: var(--marker-open); }
+    .red { background-color: var(--marker-closed); }
+    .blue { background-color: var(--market-you); }
+
+    .intro-modal {
+        position: fixed;
+        top: 20%;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 400px;
+        background: var(--bg-color, #fff);
+        color: var(--text-color, #222);
+        border: 1px solid var(--border-color, #ccc);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        padding: 20px 30px;
+        z-index: 9999;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        transition: background 0.3s, color 0.3s, border-color 0.3s;
+        display: none;
+        }
+
+        .intro-modal.dark {
+        background: var(--bg-color-dark, #222);
+        color: var(--text-color-dark, #eee);
+        border-color: var(--border-color-dark, #555);
+        }
+
+        .intro-modal h2 {
+        margin-top: 0;
+        margin-bottom: 0.5em;
+        font-weight: 600;
+        }
+
+        .intro-modal p {
+        line-height: 1.4;
+        margin-bottom: 0;
+        }
+
+        .close-btn {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        background: transparent;
+        border: none;
+        font-size: 24px;
+        color: inherit;
+        cursor: pointer;
+        font-weight: bold;
+        line-height: 1;
+        padding: 0;
+        user-select: none;
+        }
+
+        .close-btn:hover {
+        color: var(--accent-color, #007bff);
+        }
+
+        /* === MODERN POPUP STYLES === */
+      /* Add this CSS to your existing stylesheet */
+
+      .leaflet-popup-content-wrapper {
+        background: var(--bg-color) !important;
+        border: 1px solid var(--input-border) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
+      }
+
+      .leaflet-popup-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        color: var(--text-color) !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+        line-height: 1.4 !important;
+      }
+
+      .leaflet-popup-tip { display: none !important; }
+
+      .leaflet-popup-close-button {
+        background: transparent !important;
+        border: none !important;
+        font-size: 20px !important;
+        font-weight: bold !important;
+        color: var(--text-color) !important;
+        padding: 8px !important;
+        margin: 8px !important;
+        border-radius: 50% !important;
+        width: 32px !important;
+        height: 32px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: all 0.2s ease !important;
+        opacity: 0.6 !important;
+      }
+
+      .leaflet-popup-close-button:hover {
+        opacity: 1 !important;
+        background: var(--input-border) !important;
+        transform: scale(1.1) !important;
+      }
+
+      .modern-popup {
+        min-width: 240px;
+        max-width: 260px;
+      }
+
+      .popup-header {
+        background: linear-gradient(135deg, var(--btn-bg), var(--btn-hover-bg));
+        color: var(--btn-text);
+        padding: 12px 16px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .popup-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+        pointer-events: none;
+      }
+
+      .popup-title {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 0 0 4px 0;
+        letter-spacing: 0.02em;
+      }
+
+      .popup-subtitle {
+        font-size: 12px;
+        opacity: 0.9;
+        margin: 0;
+        font-weight: 400;
+      }
+
+      .popup-body {
+        padding: 14px 16px;
+        background: var(--bg-color);
+        overflow-y: auto;
+        max-height: 200px; /* Adjust this depending on your layout */
+        padding: 10px 16px;
+      }
+      .popup-body::-webkit-scrollbar {
+        width: 6px;
+      }
+      .popup-body::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+      }
+      .popup-info {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .info-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        background: var(--filter-bg);
+        border: 1px solid var(--input-border);
+        border-radius: 8px;
+        transition: all 0.2s ease;
+      }
+
+      .info-row:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .info-icon {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: bold;
+        color: var(--btn-text);
+        flex-shrink: 0;
+      }
+
+      .info-icon.address {
+        background: var(--btn-bg);
+      }
+
+      .info-icon.status {
+        background: var(--marker-open);
+      }
+
+      .info-icon.status.closed {
+        background: var(--marker-closed);
+      }
+
+      .info-icon.drive-thru {
+        background: var(--secondary-btn);
+      }
+
+      .info-icon.hours {
+        background: #ff9500;
+      }
+
+      .info-text {
+        flex: 1;
+        font-size: 13px;
+        color: var(--text-color);
+      }
+
+      .info-label {
+        font-weight: 600;
+        margin-bottom: 1px;
+      }
+
+      .info-value {
+        opacity: 0.8;
+        font-size: 12px;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .status-badge.open {
+        background: rgba(40, 167, 69, 0.1);
+        color: var(--marker-open);
+        border: 1px solid var(--marker-open);
+      }
+
+      .status-badge.closed {
+        background: rgba(220, 53, 69, 0.1);
+        color: var(--marker-closed);
+        border: 1px solid var(--marker-closed);
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+      }
+
+      .popup-actions {
+        padding: 10px 16px;
+        background: var(--filter-bg);
+        border-top: 1px solid var(--input-border);
+        display: flex;
+        gap: 6px;
+      }
+
+      .popup-btn {
+        flex: 1;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+      }
+
+      .popup-btn.primary {
+        background: var(--btn-bg);
+        color: var(--btn-text);
+      }
+
+      .popup-btn.primary:hover {
+        background: var(--btn-hover-bg);
+        transform: translateY(-1px);
+      }
+
+      .popup-btn.secondary {
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--input-border);
+      }
+
+      .popup-btn.secondary:hover {
+        background: var(--input-border);
+        transform: translateY(-1px);
+      }
+
+      /* Dark mode specific adjustments */
+      body.dark .leaflet-popup-content-wrapper {
+        background: var(--bg-color) !important;
+        border-color: var(--input-border) !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+      }
+
+      body.dark .leaflet-popup-tip {
+        background: var(--bg-color) !important;
+        border-color: var(--input-border) !important;
+      }
+
+      body.dark .info-row:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+      /* === Use My Location Button === */
+      .location-btn {
+        position: absolute;
+        top: 10px;
+        left: 270px;
+        z-index: 1100;
+        background-color: var(--btn-bg);
+        color: var(--btn-text);
+        border: none;
+        padding: 12px 18px;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 12px var(--filter-shadow);
+        transition: background-color 0.3s ease;
+        user-select: none;
+      }
+      .location-btn:hover {
+        background-color: var(--btn-hover-bg);
+      }
+
+      /* === City Dropdown === */
+      .city-dropdown {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 1100;
+        background-color: var(--filter-bg);
+        border: 2px solid var(--input-border);
+        border-radius: 8px;
+        padding: 10px 15px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 12px var(--filter-shadow);
+        transition: border-color 0.3s ease, background-color 0.3s ease;
+        color: var(--text-color);
+        min-width: 140px;
+      }
+      .city-dropdown:hover,
+      .city-dropdown:focus {
+        border-color: var(--input-focus);
+        outline: none;
+      }
+      /* === Footer Styles === */
+      .footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: var(--filter-bg);
+        color: var(--text-color);
+        padding: 15px 20px;
+        border-top: 1px solid var(--filter-bg);
+        font-size: 14px;
+        z-index: 900;
+        font-weight: bold;
+      }
+
+      .footer-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        font-size: large;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 15px;
+      }
+
+      .footer-link {
+        color: var(--filter-bg);
+        text-decoration: none;
+        transition: color 0.3s ease;
+      }
+
+      .footer-link:hover {
+        color: var(--filter-bg);
+      }
+
+      .footer-separator {
+        color: var(--filter-bg);
+        font-size: 12px;
+      }
+
+      .social-icons {
+        display: flex;
+        gap: 12px;
+      }
+
+      .social-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        background: var(--filter-bg);
+        border-radius: 50%;
+        color: var(--social-icon, #b0b0b0);
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .social-icon:hover {
+        background: var(--social-hover-bg, #3a3a3a);
+        color: var(--social-icon-hover, #fff);
+        transform: translateY(-2px);
+      }
+
+      .email-signup-btn:hover {
+        background: var(--email-btn-hover, #4a9eff) !important;
+      }
+
+      /* === Modal Styles === */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+      }
+
+      .modal-overlay.show {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .modal-content {
+        background: var(--modal-bg, #2a2a2a);
+        color: var(--modal-text, #e0e0e0);
+        border-radius: 12px;
+        width: 90%;
+        max-width: 480px;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        transform: scale(0.9);
+        transition: transform 0.3s ease;
+      }
+
+      .modal-overlay.show .modal-content {
+        transform: scale(1);
+      }
+
+      .modal-close {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: var(--modal-close, #999);
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 50%;
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+      }
+
+      .modal-close:hover {
+        background: var(--modal-close-hover-bg, #3a3a3a);
+        color: var(--modal-close-hover, #fff);
+      }
+
+      .modal-header {
+        padding: 30px 30px 20px;
+        text-align: center;
+      }
+
+      .modal-header h2 {
+        margin: 0 0 10px 0;
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--modal-heading, #fff);
+      }
+
+      .modal-header p {
+        margin: 0;
+        color: var(--modal-text-secondary, #b0b0b0);
+        font-size: 16px;
+        line-height: 1.4;
+      }
+
+      .signup-form {
+        padding: 0 30px;
+      }
+
+      .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .input-group input {
+        padding: 14px 16px;
+        border: 1px solid var(--input-border, #404040);
+        border-radius: 8px;
+        background: var(--input-bg, #1a1a1a);
+        color: var(--input-text, #fff);
+        font-size: 16px;
+        transition: border-color 0.3s ease;
+      }
+
+      .input-group input:focus {
+        outline: none;
+        border-color: var(--input-focus, #4a9eff);
+        box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.1);
+      }
+
+      .input-group input::placeholder {
+        color: var(--input-placeholder, #888);
+      }
+
+      .signup-btn {
+        padding: 14px 24px;
+        background: var(--signup-btn-bg, #4a9eff);
+        color: var(--signup-btn-text, #fff);
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 50px;
+      }
+
+      .signup-btn:hover {
+        background: var(--signup-btn-hover, #3a8eef);
+        transform: translateY(-1px);
+      }
+
+      .signup-btn:active {
+        transform: translateY(0);
+      }
+
+      .signup-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .spinner {
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      .signup-message {
+        font-size: 14px;
+        margin-top: 12px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        text-align: center;
+      }
+
+      .signup-message.show {
+        opacity: 1;
+      }
+
+      .signup-message.success {
+        color: var(--success-color, #4caf50);
+      }
+
+      .signup-message.error {
+        color: var(--error-color, #f44336);
+      }
+
+      .modal-footer {
+        padding: 20px 30px 30px;
+        text-align: center;
+      }
+
+      .modal-footer p {
+        margin: 0;
+        font-size: 13px;
+        color: var(--modal-text-secondary, #888);
+        line-height: 1.4;
+      }
+      @media (max-width: 768px) {
+      /* Logo stays in top-left (no changes needed) */
+      .logo {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 1300;
+        width: 100px;
+        height: 80px;
+        background: var(--filter-bg);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px var(--btn-bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.3s ease;
+      }
+
+      /* Filter toggle stays next to logo (no changes needed) */
+      .filter-toggle {
+        position: absolute;
+        top: 10px;
+        left: 120px;
+        height: 50px;
+        z-index: 1100;
+        background-color: var(--btn-bg);
+        color: var(--btn-text);
+        border: none;
+        padding: 12px 18px;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 12px var(--filter-shadow);
+        transition: background-color 0.3s ease;
+        user-select: none;
+      }
+
+      /* Move location button to bottom-right, above zoom controls */
+      .location-btn {
+        position: absolute;
+        left: auto;
+        right: 10px;
+        bottom: 110px; /* Position above zoom controls */
+        top: auto;
+        width: 50px;
+        height: 50px;
+        padding: 10px;
+        font-size: 15px;
+        z-index: 1000;
+      }
+
+      /* City dropdown moves to top-right corner */
+      .city-dropdown {
+        position: absolute;
+        left: auto;
+        right: 10px;
+        top: 10px;
+        width: auto;
+        font-size: 13px;
+        padding: 8px 12px;
+        min-width: 120px;
+        z-index: 1100;
+      }
+
+      /* Dark mode toggle moves above legend */
+      .dark-mode-toggle {
+        position: absolute;
+        left: 10px;
+        right: auto;
+        top: auto;
+        font-size: 15px;
+        bottom: 110px; /* Position above legend */
+        width: 50px;
+        height: 50px; /* Match location button */
+        padding: 10px; /* Match location button */
+        z-index: 1100;
+      }
+
+      /* Legend positioning for mobile */
+      .legend {
+        position: absolute;
+        top: 100px;
+        left: 10px;
+        z-index: 900;
+        height: fit-content; /* Add this line */
+        max-height: calc(100vh - 120px); /* Optional: prevent overflow */
+        overflow-y: auto; /* Optional: add scrolling if content is too tall */
+      }
+
+      /* Keep existing modal styles */
+      .intro-modal {
+        top: 10%;
+        left: 10px;
+        right: 10px;
+        max-width: none;
+        transform: none;
+        padding: 16px 20px;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      
+      .intro-modal h2 {
+        font-size: 1.3rem;
+        margin-bottom: 0.8rem;
+      }
+      
+      .intro-modal p {
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+      
+      .close-btn {
+        top: 6px;
+        right: 10px;
+        font-size: 20px;
+      }
+      .footer {
+        padding: 12px 15px;
+      }
+      
+      .footer-content {
+        font-size: 16px;
+        gap: 5px;
+        padding-bottom: 0px; /* adjust as needed */
+        padding-right: 40px;
+      }
+      
+      .social-icon {
+        width: 32px;
+        height: 32px;
+      }
+      
+      .modal-content {
+        width: 95%;
+        margin: 10px;
+      }
+      
+      .modal-header,
+      .signup-form,
+      .modal-footer {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+      
+      .modal-header {
+        padding-top: 25px;
+      }
+      
+      .modal-header h2 {
+        font-size: 20px;
+      }
+    }
+    @media (max-width: 480px) {
+      .footer-content {
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .footer-separator {
+        display: none;
+      }
+      
+      .social-icons {
+        gap: 8px;
+      }
+    }
+    .custom-logo-icon {
+      border: none;
+      background: transparent;
+    }
+    /* Smooth pulse animation for open restaurants */
+    @keyframes pulse-dot {
+      0%, 100% { 
+        opacity: 1; 
+        transform: scale(1);
+      }
+      50% { 
+        opacity: 0.6; 
+        transform: scale(1.1);
+      }
+    }
+
+    @keyframes pulse-circle {
+      0%, 100% { 
+        transform: scale(1);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      }
+      50% { 
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+      }
+    }
+
+    /* Smooth marker transitions */
+    .logo-marker-container {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    .logo-marker {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    .circle-marker {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    /* Hover effects for markers */
+    .logo-marker-container:hover .logo-marker,
+    .logo-marker-container:hover .circle-marker {
+      transform: scale(1.1);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
+      z-index: 1000;
+    }
+
+    /* Smooth map tile transitions */
+    .leaflet-tile {
+      transition: opacity 0.2s ease-in-out !important;
+    }
+
+    .leaflet-tile-loaded {
+      opacity: 1 !important;
+    }
+
+    /* Prevent white flashes during map operations */
+    .leaflet-container {
+      background-color: var(--bg-color) !important;
+    }
+
+    .leaflet-tile-container {
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    /* Smooth zoom transitions */
+    .leaflet-zoom-animated {
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+  </style>
+</head>
+<body>
+    <a class="logo" href="https://www.fastmealfinder.com/">
+      <img 
+        src="static/images/icon.webp" 
+        srcset="
+          static/images/icon.webp 1x,
+          static/images/icon@2x.webp 2x,
+          static/images/icon@3x.webp 3x
+        "
+        alt="Fast Meal Finder Logo"
+        loading="lazy"
+        width="300" height="231" 
+      >
+    </a>
+    <div id="introModal" class="intro-modal">
+      <div class="intro-content">
+          <button id="closeIntroBtn" class="close-btn" aria-label="Close Introduction">&times;</button>
+          <h2>Find Fast, Affordable Food Near You in Boston</h2>
+          <p>
+          Fast Meal Finder is Boston's premier app for discovering fast food restaurants, late-night drive-thrus, and budget-friendly dining options — all in real time. Instantly find what's open now, compare the best deals, and locate your next quick meal with our smart filters for hours, cost, and location. We do not store any geolocation data that is utilize. Geolocation data is only used to provide you a more personalized experience. Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.
+          </p>
+      </div>
+    </div>
+    <button class="filter-toggle" onclick="toggleFilters()">Filters</button>
+    <button class="dark-mode-toggle" id="darkModeToggle">☀︎</button>
+    <button class="location-btn" id="locationBtn">📍</button>
+    <select class="city-dropdown" id="citySelect">
+      <option value="">Select City</option>
+      <option value="42.3601,-71.0589">Boston</option>
+      <option value="42.335547,-71.035581">Southie</option>
+      <option value="42.3875,-71.0995">Somerville</option>
+      <option value="42.328726,-71.082590">Roxbury</option>
+      <option value="42.355361,-71.132905">Allston</option>
+      <option value="42.349222,-71.153274">Brighton</option>
+      <option value="42.373237,-71.119694">Cambridge</option>
+      <option value="42.370112,-71.038750">East Boston</option>
+      <option value="42.25288,-71.00227">Quincy</option>
+      <option value="42.418280,-71.109779">Medford</option>
+      <option value="42.425936,-71.067386">Malden</option>
+      <option value="42.333454,-71.118856">Brookline</option>
+      <option value="42.414697,-71.151328">Arlington</option>
+      <option value="42.366133,-71.184950">Watertown</option>
+      <option value="42.298647,-71.061524">Dorchester</option>
+    </select>
+    <div class="filter-panel" id="filterPanel">
+      <h3>Filter Restaurants</h3>
+      
+      <div class="filter-group">
+        <label for="companySelect">Restaurants</label>
+        <select id="companySelect">
+          <option value="">All Restaurants</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Special Filters</label>
+        <div class="checkbox-group">
+          <div class="checkbox-item">
+            <input type="checkbox" id="openNow">
+            <span>Open Now</span>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="driveThru">
+            <span>Drive-Thru</span>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="open24h">
+            <span>24-Hour</span>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="openLate">
+            <span>Open Late, after 9pm</span>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="wifi">
+            <span>Wi-Fi</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-actions">
+        <button class="filter-btn primary" onclick="applyFiltersAndClose()">Apply Filters</button>
+        <button class="filter-btn secondary" onclick="closeFilters()">Back</button>
+      </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="legend">
+      <div><span class="blue"></span> You</div>
+      <div><span class="green"></span> Open</div>
+      <div><span class="red"></span> Closed</div>
+    </div>
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-content">
+        <span>FastMealFinder © 2025</span>
+        <div class="social-icons">
+          <a href="https://www.instagram.com/fastmealfinder/" target="_blank" aria-label="Instagram" class="social-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+            </svg>
+          </a>
+          <a href="https://x.com/fastmealfinder" target="_blank" aria-label="Twitter" class="social-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.61 7.07c.01.15.01.3.01.46 0 4.71-3.58 10.15-10.15 10.15-2.01 0-3.88-.59-5.46-1.61a7.14 7.14 0 0 0 5.25-1.47 3.57 3.57 0 0 1-3.33-2.47 3.57 3.57 0 0 0 1.61-.06 3.57 3.57 0 0 1-2.86-3.5v-.05a3.58 3.58 0 0 0 1.61.44 3.57 3.57 0 0 1-1.11-4.76 10.14 10.14 0 0 0 7.36 3.73 4.03 4.03 0 0 1-.09-.82 3.57 3.57 0 0 1 6.17-2.44 7.03 7.03 0 0 0 2.26-.86 3.57 3.57 0 0 1-1.57 1.97 7.12 7.12 0 0 0 2.05-.56 7.3 7.3 0 0 1-1.78 1.84z"/>
+            </svg>
+          </a>
+          <a href="https://discord.gg/w4XtgbkqPX" target="_blank" aria-label="Discord" class="social-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 245 240" fill="currentColor">
+              <path d="M104.4 104.5c-5.7 0-10.2 5-10.2 11.2s4.6 11.2 10.2 11.2c5.7 0 10.3-5 10.2-11.2.1-6.2-4.5-11.2-10.2-11.2zm36.2 0c-5.7 0-10.2 5-10.2 11.2s4.6 11.2 10.2 11.2c5.7 0 10.3-5 10.2-11.2.1-6.2-4.5-11.2-10.2-11.2z"/>
+              <path d="M189.5 20h-134C42.9 20 20 42.9 20 75.5v89C20 197.1 42.9 220 75.5 220h113.9l-5.3-18.3 12.8 11.9 12.1 11.2 21.5 19V75.5C240 42.9 217.1 20 189.5 20zM163.3 167s-5-6-9.1-11.2c18.1-5.1 25-16.3 25-16.3-5.7 3.8-11.1 6.5-15.9 8.3-6.9 2.9-13.5 4.8-19.9 5.9-13.1 2.4-25.1 1.8-35.3-.1-7.8-1.5-14.5-3.6-20-5.9-3.1-1.2-6.5-2.8-9.9-4.8-.4-.2-.8-.3-1.2-.5-.3-.2-.5-.3-.6-.4-2.6-1.4-4-2.3-4-2.3s6.7 11.1 24.4 16.3c-4.1 5.2-9.2 11.3-9.2 11.3-30.4-1-41.9-20.9-41.9-20.9 0-44.3 19.8-80.3 19.8-80.3C71.1 65 86.9 64 86.9 64l1.8 2.2C66 73.9 58.8 83 58.8 83s3.4-1.9 9.2-4.6c16.6-7.3 29.8-9.3 35.2-9.7 1-.1 1.9-.2 2.9-.2 10.4-.8 22-1 33.7.3 15.9 1.8 33 6.6 50.5 16.3 0 0-7.9-9.4-24.9-16.1l2.5-2.9s15.8-1 31.2 11.6c0 0 19.8 36 19.8 80.3 0 0-11.6 19.9-42 20.9z"/>
+            </svg>
+          </a>
+          <!-- Email Signup Button -->
+          <button class="social-icon email-signup-btn" aria-label="Email Updates" title="Get email updates">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Email Signup Modal -->
+    <div id="emailModal" class="modal-overlay">
+      <div class="modal-content">
+        <button class="modal-close" aria-label="Close modal">&times;</button>
+        
+        <div class="modal-header">
+          <h2>Stay Updated!</h2>
+          <p>Get notified when new restaurants are added to your area!</p>
+        </div>
+
+        <form class="signup-form" id="emailSignupForm">
+          <div class="input-group">
+            <input 
+              type="email" 
+              id="emailInput" 
+              placeholder="Enter your email address" 
+              required
+              aria-label="Email address"
+            >
+            <button type="submit" class="signup-btn">
+              <span class="btn-text">Subscribe</span>
+              <span class="btn-loading" style="display: none;">
+                <svg class="spinner" width="16" height="16" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" opacity="0.3"/>
+                  <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/>
+                </svg>
+              </span>
+            </button>
+          </div>
+          <div class="signup-message" id="signupMessage"></div>
+        </form>
+
+        <div class="modal-footer">
+          <p>We'll only send you updates about new restaurants. No spam, unsubscribe anytime.</p>
+        </div>
+      </div>
+    </div>
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-analytics.js";
+
+      const firebaseConfig = {
+        apiKey: "{{ firebase_api_key }}",
+        authDomain: "{{ firebase_auth_domain }}",
+        projectId: "{{ firebase_project_id }}",
+        storageBucket: "{{ firebase_storage_bucket }}",
+        messagingSenderId: "{{ firebase_messaging_sender_id }}",
+        appId: "{{ firebase_app_id }}",
+        measurementId: "{{ firebase_measurement_id }}"
+      };
+
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      const analytics = getAnalytics(app);
+    </script>
+  </body>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    let markers = [];
+    let map;
+    let tileLayer;
+    let restaurantData = [];
+    let pendingFilters = false;
+    let imageCache = new Map(); // Store cached images
+    let allRestaurantData = []; // Store all restaurant data
+    let currentBounds = null;
+    let loadDataTimeout = null;
+
+    const southWest = L.latLng(42.2406, -71.1912);
+    const northEast = L.latLng(42.4430, -70.95);  
+    const bostonBounds = L.latLngBounds(southWest, northEast);
+    // Replace the existing initMap function
+    function initMap(isDark, preserveView = false) {
+      let currentView = null;
+      
+      if (map && preserveView) {
+        currentView = {
+          center: map.getCenter(),
+          zoom: map.getZoom()
+        };
+      }
+      if (tileLayer) {
+        tileLayer.remove();
+      }
+      if (map) {
+        map.remove();
+      }
+
+      let initialView = [42.355010, -71.065511];
+      let initialZoom = 16;
+      
+      if (!currentView) {
+        try {
+          const savedCity = localStorage.getItem('fastMealSelectedCity');
+          if (savedCity) {
+            const [lat, lng] = savedCity.split(',').map(Number);
+            initialView = [lat, lng];
+            initialZoom = 16;
+          }
+        } catch (e) {
+          console.error("Failed to load saved city for map init:", e);
+        }
+      }
+
+      map = L.map('map', {
+        zoomControl: false,
+        maxBounds: bostonBounds,
+        maxBoundsViscosity: 0.8,
+        minZoom: 13,
+        maxZoom: 18,
+        // Smoother animations
+        fadeAnimation: true,
+        zoomAnimation: true,
+        zoomAnimationThreshold: 4,
+        markerZoomAnimation: true,
+        // Better performance
+        preferCanvas: false,
+        updateWhenZooming: false,
+        updateWhenIdle: true
+      }).setView(currentView ? [currentView.center.lat, currentView.center.lng] : initialView, 
+                currentView ? currentView.zoom : initialZoom);
+
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      const lightTiles = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+      const darkTiles = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+
+      tileLayer = L.tileLayer(isDark ? darkTiles : lightTiles, {
+        minZoom: 13,
+        maxZoom: 18,
+        // Optimized tile loading
+        keepBuffer: 2,
+        updateWhenZooming: false,
+        updateWhenIdle: true,
+        // Smooth transitions
+        opacity: 1,
+        // Better caching
+        useCache: true,
+        crossOrigin: true
+      }).addTo(map);
+
+      // Load data immediately after map is ready
+      map.whenReady(() => {
+        loadDataForCurrentView();
+        setupMapEventListeners();
+      });
+    }
+
+    // Updated setupMapEventListeners with better debouncing
+    function setupMapEventListeners() {
+      let moveEndTimeout;
+      let zoomTimeout;
+      
+      map.on('movestart', () => {
+        clearTimeout(moveEndTimeout);
+        clearTimeout(zoomTimeout);
+      });
+      
+      map.on('moveend', () => {
+        clearTimeout(moveEndTimeout);
+        moveEndTimeout = setTimeout(() => {
+          loadDataForCurrentView();
+        }, 200); // Faster response
+      });
+      
+      map.on('zoomstart', () => {
+        clearTimeout(zoomTimeout);
+      });
+      
+      map.on('zoomend', () => {
+        clearTimeout(zoomTimeout);
+        zoomTimeout = setTimeout(() => {
+          applyFilters(); // Refresh markers after zoom
+        }, 100);
+      });
+    }
+
+    // New function to handle image caching
+    function preloadAndCacheImage(company) {
+      const sanitized = sanitizeCompanyName(company);
+      const logoUrl = `/static/images/logos/${sanitized}`;
+      
+      if (imageCache.has(company)) {
+        return Promise.resolve(imageCache.get(company));
+      }
+
+      return new Promise((resolve) => {
+        const img = new Image();
+        
+        img.onload = () => {
+          imageCache.set(company, logoUrl);
+          resolve(logoUrl);
+        };
+        
+        img.onerror = () => {
+          // Don't try fallback - just keep the colored circle
+          console.log(`No logo found for ${company}, keeping circle marker`);
+          resolve(null);
+        };
+        
+        img.src = logoUrl;
+      });
+    }
+
+    // Add this function for the location button
+    function useMyLocation() {
+      if ("geolocation" in navigator) {
+        const locationBtn = document.getElementById('locationBtn');
+        locationBtn.textContent = '📍 Locating...';
+        locationBtn.disabled = true;
+        
+        navigator.geolocation.getCurrentPosition(
+          function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            // Check if location is within Boston bounds
+            if (lat >= 42.2406 && lat <= 42.4430 && lng >= -71.1912 && lng <= -70.972783) {
+              map.setView([lat, lng], 15);
+              // Add/update user location marker
+              if (window.userLocationMarker) {
+                map.removeLayer(window.userLocationMarker);
+              }
+              
+              window.userLocationMarker = L.circleMarker([lat, lng], {
+                radius: 8,
+                fillColor: '#3388ff',
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.9
+              }).addTo(map);
+              
+              locationBtn.textContent = '📍';
+              locationBtn.disabled = false;
+            } else {
+              alert('Location is outside the Boston area. Please select a city from the dropdown.');
+              locationBtn.textContent = '📍';
+              locationBtn.disabled = false;
+            }
+          },
+          function(error) {
+            console.error('Location error:', error);
+            alert('Could not get your location. Please check your location settings.');
+            locationBtn.textContent = '📍';
+            locationBtn.disabled = false;
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+        );
+      } else {
+        alert('Geolocation is not supported by this browser.');
+      }
+    }
+
+    // Add this function for the city dropdown
+    function handleCityChange() {
+      const citySelect = document.getElementById('citySelect');
+      const selectedValue = citySelect.value;
+      
+      // Save the selection
+      saveCitySelection();
+      
+      if (selectedValue) {
+        const [lat, lng] = selectedValue.split(',').map(Number);
+        map.setView([lat, lng], 16);
+        
+        // Remove user location marker when selecting a city
+        if (window.userLocationMarker) {
+          map.removeLayer(window.userLocationMarker);
+        }
+      }
+    }
+    function addUserLocationMarker() {
+      if (!navigator.geolocation) return;
+
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          const latlng = [position.coords.latitude, position.coords.longitude];
+
+          if (latlng[0] >= 42.2406 && latlng[0] <= 42.4430 &&
+              latlng[1] >= -71.1912 && latlng[1] <= -70.972783) {
+            if (window.userLocationMarker) {
+              map.removeLayer(window.userLocationMarker);
+            }
+
+            window.userLocationMarker = L.circleMarker(latlng, {
+              radius: 8,
+              fillColor: '#3388ff',
+              color: '#fff',
+              weight: 2,
+              opacity: 1,
+              fillOpacity: 0.9
+            }).addTo(map);
+          }
+        },
+        function(err) {
+          console.warn("Could not access user location:", err.message);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
+
+
+    function toggleFilters() {
+      const panel = document.getElementById('filterPanel');
+      panel.classList.toggle('open');
+    }
+
+    function closeFilters() {
+      const panel = document.getElementById('filterPanel');
+      panel.classList.remove('open');
+    }
+
+    function getFilters() {
+      return {
+        openNow: document.getElementById('openNow').checked,
+        driveThru: document.getElementById('driveThru').checked,
+        open24h: document.getElementById('open24h').checked,
+        openLate: document.getElementById('openLate').checked,
+        wifi: document.getElementById('wifi').checked,
+        company: document.getElementById('companySelect').value
+      };
+    }
+
+    function saveFilters() {
+      const filters = getFilters();
+      try {
+        localStorage.setItem('fastMealFilters', JSON.stringify(filters));
+      } catch (e) {
+        console.error("Failed to save filters:", e);
+      }
+    }
+
+    function loadFilters() {
+      try {
+        const saved = localStorage.getItem('fastMealFilters');
+        if (!saved) return;
+
+        const filters = JSON.parse(saved);
+        if (filters.openNow !== undefined)
+          document.getElementById('openNow').checked = filters.openNow;
+        if (filters.driveThru !== undefined)
+          document.getElementById('driveThru').checked = filters.driveThru;
+        if (filters.open24h !== undefined)
+          document.getElementById('open24h').checked = filters.open24h;
+        if (filters.openLate !== undefined)
+          document.getElementById('openLate').checked = filters.openLate;
+        if (filters.wifi !== undefined)
+          document.getElementById('wifi').checked = filters.wifi;
+        if (filters.company !== undefined)
+          document.getElementById('companySelect').value = filters.company;
+      } catch (e) {
+        console.error("Failed to load filters:", e);
+      }
+    }
+    function saveCitySelection() {
+      const citySelect = document.getElementById('citySelect');
+      try {
+        localStorage.setItem('fastMealSelectedCity', citySelect.value);
+      } catch (e) {
+        console.error("Failed to save city selection:", e);
+      }
+    }
+
+    function loadCitySelection() {
+      try {
+        const savedCity = localStorage.getItem('fastMealSelectedCity');
+        if (savedCity) {
+          const citySelect = document.getElementById('citySelect');
+          citySelect.value = savedCity;
+          
+          // If there's a saved city, set the map view to that city
+          if (savedCity) {
+            const [lat, lng] = savedCity.split(',').map(Number);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load city selection:", e);
+      }
+    }
+    function filterData(data = allRestaurantData) {
+      const selectedCompany = document.getElementById('companySelect')?.value;
+      const onlyOpenNow = document.getElementById('openNow')?.checked;
+      const onlyDriveThru = document.getElementById('driveThru')?.checked;
+      const onlyOpen24h = document.getElementById('open24h')?.checked;
+      const onlyOpenLate = document.getElementById('openLate')?.checked;
+      const onlyWifi = document.getElementById('wifi')?.checked;
+
+      return data.filter(item => {
+        const companyMatch = !selectedCompany || item.company === selectedCompany;
+        const driveThruMatch = !onlyDriveThru || item.has_drive_thru === true;
+        const openNowMatch = !onlyOpenNow || item.open_now_dine_in === true || item.open_now_drive_thru === true;
+        const open24hMatch = !onlyOpen24h || item.is_24h_dine_in === true || item.is_24h_drive_thru === true;
+        const openLateMatch = !onlyOpenLate || item.open_late_dine_in === true || item.open_late_drive_thru === true;
+        const wifiMatch = !onlyWifi || item.has_wifi === true;
+
+        return companyMatch && driveThruMatch && openNowMatch && open24hMatch && openLateMatch && wifiMatch;
+      });
+    }
+    //Marker Popup Creation
+    function createModernPopup(restaurant) {
+      const dineInOpen = restaurant.open_now_dine_in;
+      const driveThruOpen = restaurant.open_now_drive_thru;
+
+      const now = new Date();
+
+      // Utility: Format 24h string to 12h AM/PM time
+      function formatTime(timeStr) {
+        const [hour, minute] = timeStr.split(':').map(Number);
+        const date = new Date();
+        date.setHours(hour, minute);
+        return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      }
+
+      // Utility: Get today's hours range
+      function getTodayHours(hoursMap) {
+        const today = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+        return hoursMap?.[today] || null;
+      }
+
+      // Utility: Get "Opens in X mins/hours" string
+      function getOpeningCountdown(hours) {
+        if (!hours || hours.length < 2) return null;
+        const [startTime] = hours;
+        const [startHour, startMin] = startTime.split(':').map(Number);
+
+        const openTime = new Date(now);
+        openTime.setHours(startHour, startMin, 0, 0);
+
+        if (openTime > now) {
+          const diffMs = openTime - now;
+          const diffMins = Math.round(diffMs / 60000);
+          if (diffMins < 60) return `Opens in ${diffMins} min${diffMins !== 1 ? 's' : ''}`;
+          const hours = Math.floor(diffMins / 60);
+          const mins = diffMins % 60;
+          return `Opens in ${hours}h${mins > 0 ? ` ${mins}m` : ''}`;
+        }
+        return null;
+      }
+
+      const dineInHoursToday = getTodayHours(restaurant.normalized_hours_dine_in);
+      const driveThruHoursToday = getTodayHours(restaurant.normalized_hours_drive_thru);
+
+      const dineInStatus = dineInOpen
+        ? `Open Now${dineInHoursToday ? ` (${formatTime(dineInHoursToday[0])} - ${formatTime(dineInHoursToday[1])})` : ''}`
+        : (getOpeningCountdown(dineInHoursToday) || 'Closed');
+
+      const driveThruStatus = driveThruOpen
+        ? `Open Now${driveThruHoursToday ? ` (${formatTime(driveThruHoursToday[0])} - ${formatTime(driveThruHoursToday[1])})` : ''}`
+        : (getOpeningCountdown(driveThruHoursToday) || 'Closed');
+
+      const featureIcons = {
+        has_drive_thru: '🚗 Drive-Thru',
+        has_wifi: '📶 Wi-Fi',
+        has_online_ordering: '💻 Online Ordering',
+        has_catering: '🎉 Catering'
+      };
+      console.log(`Rendering popup for ${restaurant.name || restaurant.company}`);
+      const features = Object.entries(featureIcons)
+        .filter(([key]) => restaurant[key])
+        .map(([, label]) => `
+          <div class="info-row">
+            <div class="info-icon">✅</div>
+            <div class="info-text">${label}</div>
+          </div>`)
+        .join('');
+
+      return `
+        <div class="modern-popup">
+          <div class="popup-header">
+            <div class="popup-title">${restaurant.company}</div>
+            <div class="popup-subtitle">${restaurant.name || restaurant.company}</div>
+          </div>
+          <div class="popup-body">
+            <div class="popup-info">
+              <div class="info-row">
+                <div class="info-icon address">📍</div>
+                <div class="info-text">
+                  <div class="info-label">Address</div>
+                  <div class="info-value">${restaurant.address}</div>
+                </div>
+              </div>
+              <div class="info-row">
+                <div class="info-icon">🍽️</div>
+                <div class="info-text">
+                  <div class="info-label">Dine-In</div>
+                  <div class="info-value ${dineInOpen ? 'open' : 'closed'}">
+                    ${dineInStatus}
+                  </div>
+                </div>
+              </div>
+              ${restaurant.has_drive_thru ? `
+              <div class="info-row">
+                <div class="info-icon">🚗</div>
+                <div class="info-text">
+                  <div class="info-label">Drive-Thru</div>
+                  <div class="info-value ${driveThruOpen ? 'open' : 'closed'}">
+                    ${driveThruStatus}
+                  </div>
+                </div>
+              </div>` : ''}
+              ${features}
+            </div>
+          </div>
+          <div class="popup-actions">
+            <button class="popup-btn secondary" onclick="getDirections(${restaurant.latitude}, ${restaurant.longitude})">
+              🧭 Directions
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Fix address here instead of lat and lng....
+
+    // Add these helper functions for the buttons
+    function getDirections(address, city, state, zip) {
+      // Build the full address string
+      let fullAddress = address;
+      
+      if (city) fullAddress += `, ${city}`;
+      if (state) fullAddress += `, ${state}`;
+      if (zip) fullAddress += ` ${zip}`;
+      
+      // URL encode the address for Google Maps
+      const encodedAddress = encodeURIComponent(fullAddress);
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`;
+      window.open(url, '_blank');
+    }
+
+    // Alternative version that handles missing address components more gracefully
+    function getDirectionsRobust(address, city, state, zip) {
+      // Filter out null/undefined/empty values and build address
+      const addressParts = [address, city, state, zip].filter(part => 
+        part && part.toString().trim() !== ''
+      );
+      
+      if (addressParts.length === 0) {
+        alert('Address information not available for this location');
+        return;
+      }
+      
+      const fullAddress = addressParts.join(', ');
+      const encodedAddress = encodeURIComponent(fullAddress);
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`;
+      window.open(url, '_blank');
+    }
+
+    
+    function sanitizeCompanyName(name) {
+      return name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '').replace(/&/g, 'and');
+    }
+
+    // Optimized marker creation with delayed image loading
+    function createMarker(r, addToMap = true) {
+      const isOpen = r.open_now_dine_in || r.open_now_drive_thru;
+      const baseColor = isOpen ? '#28a745' : '#dc3545'; // Green for open, red for closed
+      const opacity = isOpen ? 1 : 0.7;
+      
+      // Create a simple colored circle marker first
+      const createCircleIcon = (company, loaded = false) => {
+        const size = 32;
+        const radius = 14;
+        
+        if (loaded && imageCache.has(company)) {
+          // Show image with smooth transition
+          const logoUrl = imageCache.get(company);
+          return L.divIcon({
+            className: 'custom-logo-icon',
+            html: `
+              <div class="logo-marker-container" style="
+                width: ${size}px; height: ${size}px; position: relative;
+                transition: all 0.3s ease;
+              ">
+                <div class="logo-marker" style="
+                  width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
+                  background-color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+                  display: flex; align-items: center; justify-content: center;
+                  border: 3px solid ${baseColor}; opacity: ${opacity};
+                  position: relative; transition: all 0.3s ease;
+                ">
+                  <img src="${logoUrl}" alt="${company}" style="
+                    width: 100%; height: 100%; object-fit: contain;
+                    ${!isOpen ? 'filter: grayscale(30%);' : ''}
+                    transition: opacity 0.3s ease;
+                  " loading="lazy">
+                  <div class="status-indicator" style="
+                    position: absolute; top: -3px; right: -3px; width: 10px; height: 10px;
+                    background: ${baseColor}; border: 2px solid white;
+                    border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                    ${isOpen ? 'animation: pulse-dot 2s infinite;' : ''}
+                  "></div>
+                </div>
+              </div>
+            `,
+            iconSize: [size, size],
+            iconAnchor: [size/2, size/2]
+          });
+        } else {
+          // Show colored circle with company initial
+          const initial = company.charAt(0).toUpperCase();
+          return L.divIcon({
+            className: 'custom-logo-icon',
+            html: `
+              <div class="logo-marker-container" style="
+                width: ${size}px; height: ${size}px; position: relative;
+                transition: all 0.3s ease;
+              ">
+                <div class="circle-marker" style="
+                  width: 100%; height: 100%; border-radius: 50%;
+                  background: ${baseColor}; opacity: ${opacity};
+                  display: flex; align-items: center; justify-content: center;
+                  color: white; font-weight: bold; font-size: 14px;
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+                  border: 2px solid white;
+                  transition: all 0.3s ease;
+                  ${isOpen ? 'animation: pulse-circle 2s infinite;' : ''}
+                ">
+                  ${initial}
+                </div>
+              </div>
+            `,
+            iconSize: [size, size],
+            iconAnchor: [size/2, size/2]
+          });
+        }
+      };
+
+      // Create marker with initial circle icon
+      const marker = L.marker([r.latitude, r.longitude], { 
+        icon: createCircleIcon(r.company, false)
+      });
+      
+      if (addToMap) {
+        marker.addTo(map);
+      }
+
+      // Upgrade to image when available (with smooth transition)
+      if (imageCache.has(r.company)) {
+        // Image already loaded, upgrade immediately
+        marker.setIcon(createCircleIcon(r.company, true));
+      } else {
+        // Load image in background and upgrade when ready
+        preloadAndCacheImage(r.company).then(() => {
+          // Only upgrade if marker is still on map
+          if (map.hasLayer(marker)) {
+            marker.setIcon(createCircleIcon(r.company, true));
+          }
+        });
+      }
+
+      marker.bindPopup(createModernPopup(r), {
+        maxWidth: 260,
+        className: 'modern-popup-container',
+        autoPan: false,
+        offset: [0, 260],
+        closeButton: true,
+        closeOnClick: false,
+        autoClose: false
+      });
+
+      marker.on('click', function (e) {
+        const markerLatLng = e.latlng;
+        const map = e.target._map;
+        
+        map.setView(markerLatLng, map.getZoom(), { animate: true });
+        
+        setTimeout(() => {
+          e.target.openPopup();
+          
+          const popup = e.target.getPopup();
+          const popupElement = popup.getElement();
+          
+          if (popupElement) {
+            const rect = popupElement.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            
+            if (rect.bottom > viewportHeight) {
+              const adjustment = (rect.bottom - viewportHeight + 20) / 1000000;
+              map.panTo([markerLatLng.lat - adjustment, markerLatLng.lng], { animate: true });
+            }
+          }
+        }, 300);
+      });
+
+      return marker;
+    }
+
+    // Updated renderMarkers with aggressive lazy loading
+    function renderMarkers(data) {
+      // Don't immediately clear markers - fade them out first
+      const bounds = map.getBounds();
+      const visibleData = data.filter(r => 
+        bounds.contains([r.latitude, r.longitude])
+      );
+
+      // Remove markers that are no longer needed
+      const visibleIds = new Set(visibleData.map(r => r.id));
+      const markersToRemove = markers.filter(marker => {
+        const restaurant = marker._restaurant;
+        return !restaurant || !visibleIds.has(restaurant.id);
+      });
+
+      markersToRemove.forEach(marker => {
+        map.removeLayer(marker);
+      });
+      
+      markers = markers.filter(marker => {
+        const restaurant = marker._restaurant;
+        return restaurant && visibleIds.has(restaurant.id);
+      });
+
+      // Add new markers
+      const existingIds = new Set(markers.map(m => m._restaurant?.id).filter(Boolean));
+      const newData = visibleData.filter(r => !existingIds.has(r.id));
+
+      console.log(`Adding ${newData.length} new markers, keeping ${markers.length} existing`);
+
+      newData.forEach(r => {
+        const marker = createMarker(r, true);
+        marker._restaurant = r; // Store reference for cleanup
+        markers.push(marker);
+      });
+    }
+
+    // Load images when map stops moving (for newly visible markers)
+    function setupLazyImageLoading() {
+      let moveTimeout;
+      
+      map.on('moveend', () => {
+        clearTimeout(moveTimeout);
+        moveTimeout = setTimeout(() => {
+          const bounds = map.getBounds();
+          const mapCenter = map.getCenter();
+          
+          // Find newly visible restaurants and preload their images
+          const visibleRestaurants = restaurantData.filter(r => 
+            bounds.contains([r.latitude, r.longitude])
+          );
+
+          if (visibleRestaurants.length > 0) {
+            const closest3 = visibleRestaurants
+              .map(r => ({
+                restaurant: r,
+                distance: mapCenter.distanceTo([r.latitude, r.longitude])
+              }))
+              .sort((a, b) => a.distance - b.distance)
+              .slice(0, 3);
+
+            // Preload closest 3 newly visible images
+            closest3.forEach(item => {
+              const img = new Image();
+              img.src = getLogoUrl(item.restaurant.company);
+            });
+          }
+        }, 200); // Shorter delay
+      });
+    }
+
+    // Helper function (unchanged)
+    function getLogoUrl(company) {
+      return imageCache.get(company) || null;
+    }
+
+    // Preload images for visible restaurants
+    function preloadVisibleLogos(restaurants) {
+      const bounds = map.getBounds();
+      const visibleRestaurants = restaurants
+        .filter(r => bounds.contains([r.latitude, r.longitude]))
+        .slice(0, 12);
+        
+      visibleRestaurants.forEach(r => {
+        const img = new Image();
+        img.src = getLogoUrl(r.company);
+      });
+    }
+
+    function loadDataForCurrentView() {
+      if (!map) return;
+      
+      const bounds = map.getBounds();
+      const params = new URLSearchParams({
+        north: bounds.getNorth(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        west: bounds.getWest()
+      });
+
+      fetch(`/api/restaurants?${params}`)
+        .then(res => res.json())
+        .then(data => {
+          // Merge new data with existing data, avoiding duplicates
+          const existingIds = new Set(allRestaurantData.map(r => r.id));
+          const newData = data.filter(r => !existingIds.has(r.id));
+          allRestaurantData = [...allRestaurantData, ...newData];
+          
+          // Preload images for new restaurants in background
+          const uniqueCompanies = [...new Set(newData.map(r => r.company))];
+          Promise.all(uniqueCompanies.map(company => preloadAndCacheImage(company)))
+            .then(() => {
+              console.log(`Preloaded ${uniqueCompanies.length} company logos`);
+            });
+          
+          // Apply current filters and render
+          applyFilters();
+        })
+        .catch(error => {
+          console.error('Error loading restaurant data:', error);
+        });
+    }
+
+    // New function to setup map event listeners
+    function setupMapEventListeners() {
+      map.on('moveend', () => {
+        clearTimeout(loadDataTimeout);
+        loadDataTimeout = setTimeout(() => {
+          loadDataForCurrentView();
+        }, 300); // Debounce API calls
+      });
+    }
+    function applyFilters() {
+      const filtered = filterData(allRestaurantData);
+      
+      // Update company dropdown with all available companies
+      const select = document.getElementById('companySelect');
+      if (select && allRestaurantData.length > 0) {
+        const currentValue = select.value;
+        const companySet = new Set(allRestaurantData.map(r => r.company));
+        select.innerHTML = '<option value="">All Companies</option>';
+        companySet.forEach(c => {
+          const option = document.createElement('option');
+          option.value = c;
+          option.textContent = c;
+          select.appendChild(option);
+        });
+        select.value = currentValue; // Restore selection
+      }
+      
+      renderMarkers(filtered);
+    }
+
+    function applyFiltersAndClose() {
+      saveFilters();
+      applyFilters();
+      closeFilters();
+    }
+    function loadData() {
+      console.log('loadData called - data loading is now automatic');
+      fetch('/api/restaurants')
+        .then(res => res.json())
+        .then(data => {
+          restaurantData = data;
+          
+          // Populate company dropdown
+          const select = document.getElementById('companySelect');
+          if (select.options.length <= 1) {
+            const companySet = new Set(data.map(r => r.company));
+            select.innerHTML = '<option value="">All Companies</option>';
+            companySet.forEach(c => {
+              const option = document.createElement('option');
+              option.value = c;
+              option.textContent = c;
+              select.appendChild(option);
+            });
+            
+            // Load saved filters
+            loadFilters();
+          }
+
+          // Apply current filters and render
+          const filtered = filterData(data);
+          renderMarkers(filtered);
+        })
+        .catch(error => {
+          console.error('Error loading restaurant data:', error);
+          // For demo purposes, show some sample data
+          const sampleData = [
+            {
+              name: "McDonald's",
+              company: "McDonald's",
+              address: "123 Main St",
+              latitude: 42.3601,
+              longitude: -71.0589,
+              open_now_dine_in: true,
+              open_now_drive_thru: true,
+              is_24h_dine_in: false,
+              is_24h_drive_thru: false,
+              open_late_dine_in: true,
+              open_late_drive_thru: false,
+              has_drive_thru: true,
+              has_wifi: true,
+              has_online_ordering: true,
+              has_catering: false
+            }
+          ];
+          restaurantData = sampleData;
+          renderMarkers(sampleData);
+          
+          // Load city selection AFTER sample data is rendered
+          //loadCitySelection();
+        });
+    }
+
+    /* === Dark Mode Handling === */
+    function setDarkMode(isDark) {
+      renderMarkers(filterData(restaurantData));
+      const darkModeToggle = document.getElementById('darkModeToggle');
+
+      document.body.classList.toggle('dark', isDark);
+      darkModeToggle.textContent = isDark ? '☾' : '☀︎';
+
+      localStorage.setItem('fastMealDarkMode', isDark ? 'true' : 'false');
+
+      //if (tileLayer) map.removeLayer(tileLayer);
+
+      const lightTiles = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+      const darkTiles = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      const tiles = isDark ? darkTiles : lightTiles;
+      tileLayer.setUrl(isDark ? darkTiles : lightTiles);
+    }
+
+    function toggleDarkMode() {
+      const isDark = document.body.classList.contains('dark');
+      setDarkMode(!isDark);
+    }
+    function loadAnalytics() {
+      // Google Analytics
+      const gtag = document.createElement('script');
+      gtag.async = true;
+      gtag.src = 'https://www.googletagmanager.com/gtag/js?id=G-HHP4EYY597';
+      document.head.appendChild(gtag);
+      
+      gtag.onload = () => {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-HHP4EYY597');
+      };
+
+      // Firebase Analytics
+      import('https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js')
+        .then(({ initializeApp }) => {
+          return Promise.all([
+            import('https://www.gstatic.com/firebasejs/12.0.0/firebase-analytics.js'),
+            initializeApp({
+              apiKey: "REMOVED",
+              authDomain: "REMOVED",
+              projectId: "fast-meal-finder",
+              storageBucket: "REMOVED",
+              messagingSenderId: "REMOVED",
+              appId: "REMOVED",
+              measurementId: "REMOVED"
+            })
+          ]);
+        })
+        .then(([{ getAnalytics }, app]) => {
+          const analytics = getAnalytics(app);
+        })
+        .catch(error => console.log('Analytics failed to load:', error));
+    }
+
+    // Initialize map and user location marker
+    // Replace the existing DOMContentLoaded event listener
+    // Updated DOMContentLoaded to prioritize map loading
+    document.addEventListener('DOMContentLoaded', () => {
+      function getInitialDarkMode() {
+        const savedMode = localStorage.getItem('fastMealDarkMode');
+        if (savedMode !== null) {
+          return savedMode === 'true';
+        }
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+
+      const savedDarkMode = getInitialDarkMode();
+      
+      // Load city selection first
+      loadCitySelection();
+      
+      // Initialize map IMMEDIATELY - highest priority
+      initMap(savedDarkMode);
+      
+      // Set dark mode after map is initialized
+      setDarkMode(savedDarkMode);
+
+      // Critical UI setup first
+      setTimeout(() => {
+        loadFilters();
+        addUserLocationMarker();
+      }, 50);
+      
+      // Setup event listeners
+      document.getElementById('darkModeToggle').addEventListener('click', toggleDarkMode);
+      document.getElementById('openNow').addEventListener('change', applyFilters);
+      document.getElementById('driveThru').addEventListener('change', applyFilters);
+      document.getElementById('open24h').addEventListener('change', applyFilters);
+      document.getElementById('openLate').addEventListener('change', applyFilters);
+      document.getElementById('companySelect').addEventListener('change', applyFilters);
+      document.getElementById('locationBtn').addEventListener('click', useMyLocation);
+      document.getElementById('citySelect').addEventListener('change', handleCityChange);
+      document.getElementById('wifi').addEventListener('change', applyFilters);
+      // System dark mode listener
+      if (window.matchMedia) {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.addEventListener('change', (e) => {
+          if (localStorage.getItem('fastMealDarkMode') === null) {
+            setDarkMode(e.matches);
+          }
+        });
+      }
+      
+      // Modal setup
+      const introModal = document.getElementById('introModal');
+      const closeBtn = document.getElementById('closeIntroBtn');
+      introModal.style.display = 'none';
+
+      try {
+        if (!localStorage.getItem('fastMealIntroDismissed')) {
+          introModal.style.display = 'block';
+        }
+      } catch (e) {
+        introModal.style.display = 'block';
+      }
+
+      closeBtn.addEventListener('click', () => {
+        introModal.style.display = 'none';
+        try {
+          localStorage.setItem('fastMealIntroDismissed', 'true');
+        } catch (e) {
+          console.error("Failed to save modal state:", e);
+        }
+      });
+
+      function syncModalDarkMode() {
+        if (document.body.classList.contains('dark')) {
+          introModal.classList.add('dark');
+        } else {
+          introModal.classList.remove('dark');
+        }
+      }
+      syncModalDarkMode();
+
+      const observer = new MutationObserver(syncModalDarkMode);
+      observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+      // Load analytics AFTER everything critical is done
+      setTimeout(() => {
+        loadAnalytics();
+      }, 100);
+    });
+
+// Expose globally
+window.toggleFilters = toggleFilters;
+window.closeFilters = closeFilters;
+window.applyFilters = applyFilters;
+</script>
+
+
+
+<script>
+  // Modal functionality
+  const modal = document.getElementById('emailModal');
+  const emailBtn = document.querySelector('.email-signup-btn');
+  const closeBtn = document.querySelector('.modal-close');
+
+  // Open modal
+  emailBtn.addEventListener('click', () => {
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    // Focus on email input after modal opens
+    setTimeout(() => {
+      document.getElementById('emailInput').focus();
+    }, 300);
+  });
+
+  // Close modal
+  function closeModal() {
+    modal.classList.remove('show');
+    document.body.style.overflow = '';
+    // Clear form
+    document.getElementById('emailInput').value = '';
+    const message = document.getElementById('signupMessage');
+    message.classList.remove('show');
+  }
+
+  closeBtn.addEventListener('click', closeModal);
+
+  // Close on overlay click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeModal();
+    }
+  });
+
+  // Close on escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('show')) {
+      closeModal();
+    }
+  });
+
+  // Email signup functionality
+  document.getElementById('emailSignupForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const emailInput = document.getElementById('emailInput');
+    const submitBtn = form.querySelector('.signup-btn');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnLoading = submitBtn.querySelector('.btn-loading');
+    const message = document.getElementById('signupMessage');
+    
+    const email = emailInput.value.trim();
+    
+    if (!email) {
+      showMessage('Please enter your email address', 'error');
+      return;
+    }
+    
+    if (!isValidEmail(email)) {
+      showMessage('Please enter a valid email address', 'error');
+      return;
+    }
+    
+    // Show loading state
+    submitBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'inline-flex';
+    
+    try {
+      // Replace this with your actual API call
+      const response = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email })
+      });
+      
+      if (response.ok) {
+        showMessage('Thanks for subscribing! Check your email for confirmation.', 'success');
+        setTimeout(() => {
+          closeModal();
+        }, 2000);
+      } else {
+        const errorData = await response.json();
+        showMessage(errorData.message || 'Something went wrong. Please try again.', 'error');
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      showMessage('Network error. Please check your connection and try again.', 'error');
+    } finally {
+      // Reset button state
+      submitBtn.disabled = false;
+      btnText.style.display = 'inline';
+      btnLoading.style.display = 'none';
+    }
+  });
+  
+  function showMessage(text, type) {
+    const message = document.getElementById('signupMessage');
+    message.textContent = text;
+    message.className = `signup-message show ${type}`;
+    
+    setTimeout(() => {
+      message.classList.remove('show');
+    }, 5000);
+  }
+
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+</script>
+<!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_id }}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', '{{ google_analytics_id }}');
+  </script>
+</html>

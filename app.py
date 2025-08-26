@@ -1,322 +1,406 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
-from flask_cors import CORS
-from psycopg2.extras import RealDictCursor
-from datetime import timedelta
-from pool_connection import DatabasePoolConnection
-import math
+from flask import Flask, jsonify, render_template, request, send_from_directory, make_response, abort
+from datetime import datetime, time
+import requests
 import os
-import logging
-import traceback
+from werkzeug.utils import secure_filename
+import re
 
+import json
+from connection import DatabasePoolConnection  # Assume your pool class is in db_pool.py
 
-app = Flask(__name__)
-CORS(app)
-logging.basicConfig(level=logging.DEBUG)
-# Set session lifetime to (for example) 15 minutes of inactivity.
-app.config['SESSION_TYPE'] = None
-#app.permanent_session_lifetime = timedelta(minutes=15)
-#app.config['SESSION_TYPE'] = 'filesystem'  # Store session on the server
-app.config['SESSION_PERMANENT'] = True
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=10)
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000
+# Change to env variables in production.
+# Load Mailchimp settings (you can use environment variables in production)
+MAILCHIMP_API_KEY = os.getenv('MAILCHIMP_API_KEY')
+MAILCHIMP_LIST_ID = os.getenv('MAILCHIMP_LIST_ID')
+if MAILCHIMP_API_KEY:
+    MAILCHIMP_DC = MAILCHIMP_API_KEY.split('-')[-1]  # Extract datacenter from API key
+else:
+    MAILCHIMP_DC = None
+    print("Warning: MAILCHIMP_API_KEY not found in environment variables")
+MAILCHIMP_API_URL = f'https://{MAILCHIMP_DC}.api.mailchimp.com/3.0/lists/{MAILCHIMP_LIST_ID}/members'
 
-
-# Your Firebase Web API Key (from your Firebase project settings)
-# Create a single global connection pool at app level
+app = Flask(__name__, static_folder='static', static_url_path='/static')
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
 db_connection = DatabasePoolConnection()
-# Helper functions (not endpoints) that return data from the DB
-def fetch_companies():
-    with db_connection.connection() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            query = "SELECT DISTINCT companyid, companyname, deallink FROM companies WHERE deallink IS NOT NULL AND deallink <> '' ORDER BY companyname;"
-            cursor.execute(query)
-            companies = cursor.fetchall()
+
+@app.context_processor
+def inject_config():
+    return {
+        'google_analytics_id': os.getenv('GOOGLE_ANALYTICS_ID'),
+    }
+
+def safe_parse_json(val):
+    """Safely parse JSON string or return the value if already parsed"""
+    try:
+        return json.loads(val) if isinstance(val, str) else val
+    except json.JSONDecodeError:
+        return {}
+
+def convert_to_24hr(time_str):
+    """Convert formats like '6am', '6:30am', '1130pm', '11:30pm', '3am' to 'HH:MM'"""
+    if not time_str:
+        return None
+        
+    time_str = time_str.strip().lower().replace(" ", "")
     
-    # Ensure image paths match expected static file names
-    for company in companies:
-        company["image_url"] = f"/static/{company['companyid']}.png"  # Assuming all images are .png
-    return companies
-
-
-def fetch_cuisines():
-    with db_connection.connection() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            query = "SELECT DISTINCT type FROM companies ORDER BY type;"
-            cursor.execute(query)
-            cuisines = cursor.fetchall()
-    return cuisines
-
-def get_locations_from_db(
-    south_west_lng=-124.848974, south_west_lat=24.396308,
-    north_east_lng=-66.93457,   north_east_lat=49.384358
-):
-    try:
-        with db_connection.connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                query = """
-                    SELECT l.locationid,
-                           l.latitude,
-                           l.longitude,
-                           l.address,
-                           l.city,
-                           l.state,
-                           l.zipcode,
-                           l.housenumber,
-                           l.street,
-                           l.hours,
-                           c.companyname,
-                           c.companyid,
-                           c.type AS cuisine_type
-                    FROM locations l
-                    JOIN companies c ON l.companyid = c.companyid
-                    WHERE l.geom && ST_MakeEnvelope(%s, %s, %s, %s, 4326)
-                    ORDER BY
-                      ST_Distance(
-                        l.geom,
-                        ST_Centroid(
-                          ST_MakeEnvelope(%s, %s, %s, %s, 4326)
-                        )
-                      ) + (random() * 50)
-                    LIMIT 100;
-                """
-                # **EIGHT** parameters now, matching the eight %s above
-                params = (
-                    south_west_lng, south_west_lat, north_east_lng, north_east_lat,
-                    south_west_lng, south_west_lat, north_east_lng, north_east_lat
-                )
-                cur.execute(query, params)
-                results = cur.fetchall()
-        print("Results:", results)  # Debugging
-        def sanitize_value(val):
-            if isinstance(val, float) and math.isnan(val):
-                return None
-            return val
-        # inside your loop:
-        results = [
-            {k: sanitize_value(v) for k, v in row.items()}
-            for row in cur.fetchall()
-        ]
-        return results
-    except Exception as e:
-        print(f"Error: {e}")
-        return []
-
-    except Exception as e:
-        print(f"Error: {e}")
-        return []
-# The explore route now simply passes the initial locations (using the default bounding box).
-@app.route('/')
-@app.route('/explore')
-def explore():
-    locations = get_locations_from_db()
-    return render_template('explore.html', locations=locations)
-
-# Endpoint versions of the helper functions (if needed)
-@app.route('/get_companies', methods=['GET'])
-def get_companies_endpoint():
-    companies = fetch_companies()
-    return jsonify(companies)
-
-@app.route('/get_cuisines', methods=['GET'])
-def get_cuisines_endpoint():
-    cuisines = fetch_cuisines()
-    return jsonify(cuisines)
-
-# An endpoint that returns both companies and cuisines for your JS filters
-@app.route('/get_companies_and_cuisines', methods=['GET'])
-def get_companies_and_cuisines():
-    try:
-        companies = fetch_companies()
-        cuisines = fetch_cuisines()
-        return jsonify({"companies": companies, "cuisines": cuisines})
-    except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({"error": "Internal server error"}), 500
-
-# An endpoint to get locations by bounding box (if you need it separately)
-@app.route('/locations', methods=['GET'])
-def get_locations():
-    south_west_lng = request.args.get('southWestLng', type=float)
-    south_west_lat = request.args.get('southWestLat', type=float)
-    north_east_lng = request.args.get('northEastLng', type=float)
-    north_east_lat = request.args.get('northEastLat', type=float)
-    if None in (south_west_lng, south_west_lat, north_east_lng, north_east_lat):
-        return jsonify({"error": "Missing bounding box parameters"}), 400
-    try:
-        with db_connection.connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                query = """
-                    SELECT l.locationid,
-                           l.latitude,
-                           l.longitude,
-                           l.address,
-                           l.city,
-                           l.state,
-                           l.zipcode,
-                           l.housenumber,
-                           l.street,
-                           l.hours,
-                           c.companyname,
-                           c.companyid,
-                           c.type as cuisine_type
-                    FROM locations l
-                    JOIN companies c ON l.companyid = c.companyid
-                    WHERE l.geom && ST_MakeEnvelope(%s, %s, %s, %s, 4326)
-                    LIMIT 100;
-                """
-                cur.execute(query, (south_west_lng, south_west_lat, north_east_lng, north_east_lat))
-                locations = cur.fetchall()
-        return jsonify(locations)
-    except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({"error": "Internal server error"}), 500
-
-# This endpoint accepts optional filtering for companies and cuisines.
-@app.route('/get_filtered_locations', methods=['GET'])
-def get_filtered_locations():
-    company_filter = request.args.getlist('company[]')
-    cuisine_filter = request.args.getlist('cuisine[]')
-    south_west_lng = request.args.get('southWestLng', type=float)
-    south_west_lat = request.args.get('southWestLat', type=float)
-    north_east_lng = request.args.get('northEastLng', type=float)
-    north_east_lat = request.args.get('northEastLat', type=float)
+    # Handle special cases
+    if time_str in ['midnight', '12am']:
+        return "00:00"
+    if time_str in ['noon', '12pm']:
+        return "12:00"
     
-    if None in (south_west_lng, south_west_lat, north_east_lng, north_east_lat):
-        return jsonify({"error": "Missing bounding box parameters"}), 400
-
-    query = """
-        SELECT l.locationid,
-               l.latitude,
-               l.longitude,
-               l.address,
-               l.city,
-               l.state,
-               l.zipcode,
-               l.housenumber,
-               l.street,
-               l.hours,
-               c.companyname,
-               c.companyid,
-               c.type as cuisine_type
-        FROM locations l
-        JOIN companies c ON l.companyid = c.companyid
-        WHERE l.geom && ST_MakeEnvelope(%s, %s, %s, %s, 4326)
-    """
-    params = [south_west_lng, south_west_lat, north_east_lng, north_east_lat]
-
-    if company_filter:
-        query += " AND c.companyname = ANY(%s)"
-        params.append(company_filter)
-    if cuisine_filter:
-        query += " AND c.type = ANY(%s)"
-        params.append(cuisine_filter)
+    # Remove any non-alphanumeric characters except colon
+    time_str = re.sub(r'[^0-9:apm]', '', time_str)
     
-    query += " LIMIT 100;"
-
-    try:
-        with db_connection.connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(query, tuple(params))
-                locations = cur.fetchall()
-        return jsonify(locations)
-    except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({"error": "Internal server error"}), 500
-
+    # Try different parsing formats
+    formats_to_try = [
+        ("%I:%M%p", time_str),  # 6:30am, 11:30pm
+        ("%I%p", time_str),     # 6am, 11pm
+        ("%H:%M", time_str),    # 06:30, 23:30 (already 24hr)
+        ("%H%M", time_str),     # 0630, 2330 (already 24hr)
+    ]
     
-   
-# 📌 Autocomplete API - Returns matching towns, ZIP codes, etc.
-@app.route('/autocomplete', methods=['GET'])
-def autocomplete():
-    query = request.args.get('q', '').strip().lower()
-    if not query:
-        return jsonify([])
+    # Handle formats like '1130pm' -> '11:30pm'
+    if len(time_str) >= 5 and time_str[-2:] in ['am', 'pm'] and ':' not in time_str:
+        numeric_part = time_str[:-2]
+        if len(numeric_part) == 3:  # like '630pm'
+            time_str = numeric_part[0] + ':' + numeric_part[1:] + time_str[-2:]
+        elif len(numeric_part) == 4:  # like '1130pm'
+            time_str = numeric_part[:2] + ':' + numeric_part[2:] + time_str[-2:]
+        formats_to_try.insert(0, ("%I:%M%p", time_str))
+    
+    for fmt, time_to_parse in formats_to_try:
+        try:
+            parsed_time = datetime.strptime(time_to_parse, fmt)
+            return parsed_time.strftime("%H:%M")
+        except ValueError:
+            continue
+    
+    #print(f"Warning: failed to parse time '{time_str}'")
+    return None
 
-    try:
-        with db_connection.connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cursor:  # Use column names, not indexes
-                sql = """
-                    SELECT city_name, zip_code, state_name, ST_X(geo_point) AS lon, ST_Y(geo_point) AS lat
-                    FROM us_locations
-                    WHERE LOWER(city_name) LIKE %s OR zip_code LIKE %s
-                    LIMIT 10;
-                """
-                cursor.execute(sql, (f"%{query}%", f"%{query}%"))
-                results = cursor.fetchall()
+def normalize_hours(hours):
+    """Normalize restaurant hours to a consistent format"""
+    if not hours or not isinstance(hours, dict):
+        return None
 
-                print("Results:", results)  # Debugging
-
-        return jsonify([
-            {
-                "city": row["city_name"],  # Use column names instead of indexes
-                "zip": row["zip_code"],
-                "state": row["state_name"],
-                "lon": row["lon"],  # Longitude
-                "lat": row["lat"]   # Latitude
-            } for row in results
-        ])
-
-    except Exception as e:
-        logging.error("ERROR: %s", traceback.format_exc())  # Log detailed error message
-        return jsonify({"error": "An internal error has occurred!"}), 500
-
-@app.route('/search', methods=['GET'])
-def search():
-    location = request.args.get('q', '').strip().lower()
-    if not location:
-        return jsonify({"error": "No location provided"}), 400
-
-    with db_connection.connection() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            # Use ILIKE for case-insensitive, partial matching
-            sql = """
-                SELECT city_name, zip_code, state_name, ST_X(geo_point), ST_Y(geo_point)
-                FROM us_locations
-                WHERE city_name ILIKE %s OR zip_code ILIKE %s
-                LIMIT 1;
-            """
-            # Match the location with the city name or zip code, with partial matching
-            cursor.execute(sql, (f"%{location}%", f"%{location}%"))
-            result = cursor.fetchone()
-
-            # Debugging output
-            print(f"Search query: {location}")
-            print("Search result:", result)
-
-            if result:
-                return jsonify({
-                    "city": result["city_name"],  # Ensure you're accessing the dictionary key correctly
-                    "zip": result["zip_code"],
-                    "state": result["state_name"],
-                    "lon": result["st_x"],  # Longitude
-                    "lat": result["st_y"]   # Latitude
-                })
+    normalized = {}
+    
+    for day, value in hours.items():
+        day_key = day.lower()
+        #print(f"Normalizing {day_key}: {value}")
+        
+        if not value:
+            continue
+            
+        if isinstance(value, str):
+            val = value.strip()
+            
+            # Handle 24-hour operations
+            if val.lower() in ["open 24 hours", "24 hours", "24/7"]:
+                normalized[day_key] = ["00:00", "23:59"]
+                continue
+            
+            # Handle closed
+            if val.lower() in ["closed", "close"]:
+                continue
+            
+            # Parse time ranges like "6am - 3am" or "10:30am - 11:30pm"
+            time_range_pattern = r'(\d{1,2}:?\d{0,2}\s*(?:am|pm))\s*-\s*(\d{1,2}:?\d{0,2}\s*(?:am|pm))'
+            match = re.search(time_range_pattern, val.lower())
+            
+            if match:
+                open_time_str = match.group(1)
+                close_time_str = match.group(2)
+                
+                open_time = convert_to_24hr(open_time_str)
+                close_time = convert_to_24hr(close_time_str)
+                
+                if open_time and close_time:
+                    normalized[day_key] = [open_time, close_time]
+                else:
+                    print(f"Failed to parse times for {day}: {value}")
             else:
-                return jsonify({"error": "Location not found"}), 404
+                print(f"Could not parse time range format for {day}: {value}")
+                
+        elif isinstance(value, list) and len(value) == 2:
+            # Already in the correct format
+            normalized[day_key] = value
+        else:
+            print(f"Unsupported format for {day}: {value}")
+    
+    #print(f"Normalized hours: {normalized}")
+    return normalized
 
-@app.route('/deals')
-def deals():
-    return render_template('deals.html')
+def is_open_now(hours_dict):
+    """Check if restaurant is currently open"""
+    if not hours_dict:
+        return False
+    
+    now = datetime.now()
+    day_name = now.strftime('%A').lower()
+    current_time = now.strftime('%H:%M')
+    
+    #print(f"Checking if open now - Day: {day_name}, Current time: {current_time}")
+    
+    if day_name not in hours_dict:
+        print(f"No hours found for {day_name}") # Look into this! #ERROR
+        return False
+    
+    times = hours_dict[day_name]
+    if not times or len(times) != 2:
+        print(f"Invalid times format for {day_name}: {times}")
+        return False
+    
+    open_time, close_time = times
+    #print(f"Restaurant hours for {day_name}: {open_time} - {close_time}")
+    
+    # Handle overnight closing (e.g., 6am - 3am means open until 3am next day)
+    if close_time < open_time:
+        # Restaurant is open from open_time to midnight, OR from midnight to close_time
+        is_open = current_time >= open_time or current_time <= close_time
+        #print(f"Overnight hours - Open: {is_open}")
+        return is_open
+    else:
+        # Normal same-day hours
+        is_open = open_time <= current_time <= close_time
+        #print(f"Same-day hours - Open: {is_open}")
+        return is_open
 
-@app.route('/get_companies', methods=['GET'])
-def get_companies():
+def is_24_hour(hours_dict):
+    """Check if restaurant operates 24 hours"""
+    if not hours_dict:
+        return False
+
+    # Check if all days are 24 hours or if any day is 24 hours
+    for day, times in hours_dict.items():
+        if not times:
+            continue
+        if isinstance(times, list) and len(times) == 2:
+            if times == ["00:00", "23:59"]:
+                return True
+    return False
+
+def is_open_late(hours_dict):
+    """Check if restaurant is open late (past 9 PM or overnight)"""
+    if not hours_dict:
+        return False
+    
+    for day, times in hours_dict.items():
+        if not times or len(times) != 2:
+            continue
+        
+        open_time, close_time = times
+        
+        try:
+            close_hour = int(close_time.split(':')[0])
+            open_hour = int(open_time.split(':')[0])
+            
+            # Check if closes after 9 PM (21:00)
+            if close_hour >= 21:
+                return True
+            
+            # Check for overnight operation (close time is earlier than open time)
+            if close_time < open_time:
+                return True
+                
+        except (ValueError, IndexError):
+            print(f"Error parsing hours for {day}: {times}")
+            continue
+    
+    return False
+
+
+@app.route("/")
+def index():
+    return render_template('index.html') #, google_analytics_id=os.getenv('GOOGLE_ANALYTICS_ID')
+
+@app.route("/api/subscribe", methods=["POST"])
+def subscribe():
+    data = request.json
+
+    email = data.get('email')
+    first_name = data.get('firstName', '')
+    last_name = data.get('lastName', '')
+
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+
+    payload = {
+        "email_address": email,
+        "status": "subscribed",
+        "merge_fields": {
+            "FNAME": first_name,
+            "LNAME": last_name
+        }
+    }
+
+    response = requests.post(
+        MAILCHIMP_API_URL,
+        auth=("anystring", MAILCHIMP_API_KEY),
+        json=payload
+    )
+
+    if response.status_code == 200 or response.status_code == 204:
+        return jsonify({'message': 'Successfully subscribed!'}), 200
+    else:
+        return jsonify({'error': 'Subscription failed', 'details': response.json()}), response.status_code
+
+@app.route("/api/restaurants")
+def get_restaurants():
+    # Get bounds from query parameters
+    north = request.args.get('north', type=float)
+    south = request.args.get('south', type=float)
+    east = request.args.get('east', type=float)
+    west = request.args.get('west', type=float)
+    
     with db_connection.connection() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            query = "SELECT DISTINCT companyid, companyname FROM companies ORDER BY companyname;"
-            cursor.execute(query)
-            companies = cursor.fetchall()
-    return jsonify(companies)
+        cur = conn.cursor()
+        
+        # Base query
+        base_query = """
+            SELECT
+                rl.id, rl.name, COALESCE(c.name, rl.company_id) AS company,
+                rl.latitude, rl.longitude,
+                rl.address, rl.city, rl.state, rl.zip,
+                rl.has_drive_thru, rl.has_wifi,
+                rl.has_online_ordering, rl.has_catering,
+                rl.dine_in_hours, rl.drive_thru_hours
+            FROM restaurant_locations rl
+            LEFT JOIN companies c ON TRIM(rl.company_id) = TRIM(c.name)
+            WHERE rl.latitude IS NOT NULL 
+            AND rl.longitude IS NOT NULL
+            AND rl.latitude != 0 
+            AND rl.longitude != 0
+        """
+        
+        # Add bounds filtering if provided
+        if all(param is not None for param in [north, south, east, west]):
+            base_query += """
+                AND rl.latitude BETWEEN %s AND %s
+                AND rl.longitude BETWEEN %s AND %s
+            """
+            cur.execute(base_query, (south, north, west, east))
+        else:
+            cur.execute(base_query)
+            
+        rows = cur.fetchall()
+        cur.close()
 
+    result = []
+    for row in rows:
+        # Validate coordinates before processing
+        latitude = row[3]
+        longitude = row[4]
+        
+        # Skip restaurants with invalid coordinates
+        if latitude is None or longitude is None:
+            continue
+            
+        try:
+            latitude = float(latitude)
+            longitude = float(longitude)
+        except (ValueError, TypeError):
+            continue
+            
+        # Skip restaurants with obviously invalid coordinates
+        if latitude == 0 or longitude == 0:
+            continue
+
+        dine_in_hours_raw = safe_parse_json(row[13])
+        drive_thru_hours_raw = safe_parse_json(row[14])
+        dine_in_hours = normalize_hours(dine_in_hours_raw)
+        drive_thru_hours = normalize_hours(drive_thru_hours_raw)
+        
+        open_now_dine_in = is_open_now(dine_in_hours)
+        open_now_drive_thru = is_open_now(drive_thru_hours)
+
+        result.append({
+            "id": row[0],
+            "name": row[1],
+            "company": row[2],
+            "latitude": latitude,
+            "longitude": longitude,
+            "address": row[5],
+            "city": row[6],
+            "state": row[7],
+            "zip": row[8],
+            "has_drive_thru": row[9],
+            "has_wifi": row[10],
+            "has_online_ordering": row[11],
+            "has_catering": row[12],
+            "open_now_dine_in": open_now_dine_in,
+            "open_now_drive_thru": open_now_drive_thru,
+            "is_24h_dine_in": is_24_hour(dine_in_hours) if dine_in_hours else False,
+            "is_24h_drive_thru": is_24_hour(drive_thru_hours) if drive_thru_hours else False,
+            "open_late_dine_in": is_open_late(dine_in_hours) if dine_in_hours else False,
+            "open_late_drive_thru": is_open_late(drive_thru_hours) if drive_thru_hours else False,
+        })
+    return jsonify(result)
+
+@app.route('/sitemap.xml')
+def sitemap():
+    return send_from_directory('static', 'sitemap.xml')
+
+@app.route('/robots.txt')
+def robots():
+    return send_from_directory('static', 'robots.txt')
 @app.route('/disclaimer')
 def disclaimer():
     return render_template('disclaimer.html')
 
-@app.route('/static/<path:filename>')
-def serve_static(filename):
-    response = send_from_directory(os.path.join(app.root_path, 'static'), filename)
-    response.headers['Cache-Control'] = 'public, max-age=86400'  # Cache for 1 day
-    return response
+@app.route('/static/images/logos/<path:company_name>')
+def serve_company_logo(company_name):
+    """
+    Securely serve company logo images with long cache headers.
+    Tries .webp first (smallest), then .png, then .jpg. Falls back to default if none found.
+    """
+    logo_dir = os.path.join(app.root_path, 'static', 'images', 'logos')
+    raw_name = company_name.strip().lower().replace(" ", "-").replace("'", "").replace("&", "and")
+    sanitized = secure_filename(raw_name)
+    name, ext = os.path.splitext(sanitized)
+    # Debug: Print Accept header and sanitized name
+    accept_header = request.headers.get('Accept', '')
+    accepts_webp = 'image/webp' in accept_header
+    tried_files = []
+    # Always try WebP first if browser supports it, regardless of what exists
+    extensions = ['.webp', '.png', '.jpg'] if accepts_webp else ['.png', '.jpg']
+    # Try each extension in order
+    for ext_candidate in extensions:
+        filename = f"{name}{ext_candidate}"
+        filepath = os.path.join(logo_dir, filename)
+        tried_files.append(filename)
+        if os.path.exists(filepath):
+            response = make_response(send_from_directory(logo_dir, filename))
+            # Set appropriate content type
+            if ext == '.webp':
+                response.headers['Content-Type'] = 'image/webp'
+            elif ext == '.png':
+                response.headers['Content-Type'] = 'image/png'
+            elif ext == '.jpg':
+                response.headers['Content-Type'] = 'image/jpeg'
+            
+            # Long cache headers for performance
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            response.headers['Vary'] = 'Accept'  # Important for WebP content negotiation
+            
+            return response
 
-if __name__ == '__main__':
-    #app.run(debug=True, host='127.0.0.1', port=3000)
-    app.run(debug=False, host='0.0.0.0', port=3000)
+    # Try default fallback (check WebP default first if supported)
+    fallback_extensions = ['.webp', '.png', '.jpg'] if accepts_webp else ['.png', '.jpg']
+    for ext in fallback_extensions:
+        fallback = f'default{ext}'
+        fallback_path = os.path.join(logo_dir, fallback)
+        if os.path.exists(fallback_path):
+            response = make_response(send_from_directory(logo_dir, fallback))
+            # Set appropriate content type for fallback
+            if ext == '.webp':
+                response.headers['Content-Type'] = 'image/webp'
+            elif ext == '.png':
+                response.headers['Content-Type'] = 'image/png'
+            elif ext == '.jpg':
+                response.headers['Content-Type'] = 'image/jpeg'
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            response.headers['Vary'] = 'Accept'
+            return response
+    abort(404)
