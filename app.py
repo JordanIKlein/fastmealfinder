@@ -6,8 +6,7 @@ from werkzeug.utils import secure_filename
 import re
 
 import json
-from connection import DatabasePoolConnection  # Assume your pool class is in db_pool.py
-
+from pool_connection import DatabasePoolConnection
 # Change to env variables in production.
 # Load Mailchimp settings (you can use environment variables in production)
 MAILCHIMP_API_KEY = os.getenv('MAILCHIMP_API_KEY')
@@ -404,3 +403,6 @@ def serve_company_logo(company_name):
             response.headers['Vary'] = 'Accept'
             return response
     abort(404)
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
