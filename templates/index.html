@@ -190,24 +190,6 @@
         </div>
       </div>
     </div>
-    <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
-      import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-analytics.js";
-
-      const firebaseConfig = {
-        apiKey: "{{ firebase_api_key }}",
-        authDomain: "{{ firebase_auth_domain }}",
-        projectId: "{{ firebase_project_id }}",
-        storageBucket: "{{ firebase_storage_bucket }}",
-        messagingSenderId: "{{ firebase_messaging_sender_id }}",
-        appId: "{{ firebase_app_id }}",
-        measurementId: "{{ firebase_measurement_id }}"
-      };
-
-      // Initialize Firebase
-      const app = initializeApp(firebaseConfig);
-      const analytics = getAnalytics(app);
-    </script>
   </body>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
@@ -1076,31 +1058,7 @@
         gtag('js', new Date());
         gtag('config', 'G-HHP4EYY597');
       };
-
-      // Firebase Analytics
-      import('https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js')
-        .then(({ initializeApp }) => {
-          return Promise.all([
-            import('https://www.gstatic.com/firebasejs/12.0.0/firebase-analytics.js'),
-            initializeApp({
-              apiKey: "REMOVED",
-              authDomain: "REMOVED",
-              projectId: "fast-meal-finder",
-              storageBucket: "REMOVED",
-              messagingSenderId: "REMOVED",
-              appId: "REMOVED",
-              measurementId: "REMOVED"
-            })
-          ]);
-        })
-        .then(([{ getAnalytics }, app]) => {
-          const analytics = getAnalytics(app);
-        })
-        .catch(error => console.log('Analytics failed to load:', error));
     }
-
-    // Initialize map and user location marker
-    // Replace the existing DOMContentLoaded event listener
     // Updated DOMContentLoaded to prioritize map loading
     document.addEventListener('DOMContentLoaded', () => {
       function getInitialDarkMode() {
