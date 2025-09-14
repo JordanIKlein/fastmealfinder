@@ -514,6 +514,23 @@ html, body {
     opacity: 0.8;
     font-size: 12px;
     }
+    /* Inline phone button styling */
+    .phone-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--btn-text);
+    background: var(--btn-bg);
+    font-weight: 600;
+    font-size: 12px;
+    border: none;
+    }
+    .phone-btn:hover {
+    background: var(--btn-hover-bg);
+    }
 
     .status-badge {
     display: inline-flex;
@@ -559,6 +576,7 @@ html, body {
     border-top: 1px solid var(--input-border);
     display: flex;
     gap: 6px;
+    flex-wrap: wrap; /* allow buttons to wrap on narrow widths */
     }
 
     .popup-btn {
@@ -598,6 +616,35 @@ html, body {
     background: var(--input-border);
     transform: translateY(-1px);
     }
+
+        /* Delivery brand buttons */
+        .popup-btn.doordash {
+            background: #ff3008; /* DoorDash red */
+            color: #fff;
+            border: none;
+        }
+        .popup-btn.doordash:hover {
+            background: #d92907;
+        }
+        .popup-btn.ubereats {
+            background: #000; /* Uber Eats black */
+            color: #1ed760;   /* Uber Eats green accent */
+            border: 1px solid #1ed760;
+        }
+        .popup-btn.ubereats:hover {
+            background: #111;
+            color: #5cff8d;
+            border-color: #5cff8d;
+        }
+        /* Call button */
+        .popup-btn.call {
+            background: #16a34a; /* green */
+            color: #fff;
+            border: none;
+        }
+        .popup-btn.call:hover {
+            background: #15803d;
+        }
 
     /* Dark mode specific adjustments */
     body.dark .leaflet-popup-content-wrapper {

@@ -1,7 +1,5 @@
 from psycopg2 import pool
-
 from contextlib import contextmanager
-from psycopg2 import pool
 
 class DatabasePoolConnection:
     def __init__(self):

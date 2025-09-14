@@ -202,8 +202,10 @@
     let allRestaurantData = []; // Store all restaurant data
     let currentBounds = null;
     let loadDataTimeout = null;
-    let restaurantCache = new Map(); // key: restaurant.id, value: restaurant object
-    let markerCache = new Map();     // key: restaurant.id, value: Leaflet marker
+  let restaurantCache = new Map(); // key: restaurant.id, value: restaurant object
+  let markerCache = new Map();     // key: restaurant.id, value: Leaflet marker
+  // Guard to prevent recursive move/zoom handlers during programmatic pans
+  let isAdjustingPopupView = false;
 
 
     const southWest = L.latLng(42.2406, -71.1912);
@@ -248,6 +250,7 @@
         maxBoundsViscosity: 0.8,
         minZoom: 13,
         maxZoom: 18,
+        closePopupOnClick: false,
         // Smoother animations
         fadeAnimation: true,
         zoomAnimation: true,
@@ -297,6 +300,10 @@
       });
       
       map.on('moveend', () => {
+        if (isAdjustingPopupView) {
+          // Skip heavy work triggered by our own pan/center operations
+          return;
+        }
         clearTimeout(moveEndTimeout);
         moveEndTimeout = setTimeout(() => {
           loadDataForCurrentView();
@@ -308,6 +315,9 @@
       });
       
       map.on('zoomend', () => {
+        if (isAdjustingPopupView) {
+          return;
+        }
         clearTimeout(zoomTimeout);
         zoomTimeout = setTimeout(() => {
           applyFilters(); // Refresh markers after zoom
@@ -542,6 +552,9 @@
     function createModernPopup(restaurant) {
       const dineInOpen = restaurant.open_now_dine_in;
       const driveThruOpen = restaurant.open_now_drive_thru;
+      // Support multiple possible phone field names from API/DB
+      const phone = restaurant.phone_number || restaurant.phone || restaurant.phoneNumber || null;
+      const sanitizedTel = phone ? (String(phone).replace(/[^+0-9]/g, '')) : null;
 
       const now = new Date();
 
@@ -606,6 +619,17 @@
           </div>`)
         .join('');
 
+      // Helper to find delivery URLs across possible field names
+      const getFirstUrl = (obj, keys) => {
+        for (const k of keys) {
+          const v = obj[k];
+          if (typeof v === 'string' && v.trim()) return v.trim();
+        }
+        return null;
+      };
+  const doorDashUrl = getFirstUrl(restaurant, ['doordash_link', 'doordash', 'door_dash_url', 'dd_url']);
+  const uberEatsUrl = getFirstUrl(restaurant, ['ubereats_link', 'uber_eats_url', 'uber_eats', 'uber_url']);
+
       return `
         <div class="modern-popup">
           <div class="popup-header">
@@ -621,6 +645,16 @@
                   <div class="info-value">${restaurant.address}</div>
                 </div>
               </div>
+              ${phone ? `
+              <div class="info-row">
+                <div class="info-icon">📞</div>
+                <div class="info-text">
+                  <div class="info-label">Phone</div>
+                  <div class="info-value">
+                    <a class="phone-btn" href="tel:${sanitizedTel}" aria-label="Call ${restaurant.name || restaurant.company}">${phone}</a>
+                  </div>
+                </div>
+              </div>` : ''}
               <div class="info-row">
                 <div class="info-icon">🍽️</div>
                 <div class="info-text">
@@ -644,7 +678,9 @@
             </div>
           </div>
           <div class="popup-actions">
-            <button class="popup-btn secondary" onclick="getDirections(${restaurant.latitude}, ${restaurant.longitude})">
+            ${doorDashUrl ? `<a class="popup-btn doordash" href="${doorDashUrl}" target="_blank" rel="noopener">DoorDash</a>` : ''}
+            ${uberEatsUrl ? `<a class="popup-btn ubereats" href="${uberEatsUrl}" target="_blank" rel="noopener">Uber Eats</a>` : ''}
+            <button class="popup-btn secondary" onclick='getDirectionsRobust(${JSON.stringify(restaurant.address || "")}, ${JSON.stringify(restaurant.city || "")}, ${JSON.stringify(restaurant.state || "")}, ${JSON.stringify(restaurant.zip || "")})'>
               🧭 Directions
             </button>
           </div>
@@ -791,20 +827,36 @@
       }
 
       marker.bindPopup(createModernPopup(r), {
-        maxWidth: 260,
+        maxWidth: 420,
         className: 'modern-popup-container',
-        autoPan: false,
-        offset: [0, 260],
+        autoPan: true,
+        offset: [0, 0],
         closeButton: true,
         closeOnClick: false,
-        autoClose: false
+        autoClose: false,
+        // Disable internal keepInView to avoid recursion with maxBounds
+        keepInView: false
       });
 
       marker.on('click', function (e) {
         const markerLatLng = e.latlng;
         const map = e.target._map;
-        
-        map.setView(markerLatLng, map.getZoom(), { animate: true });
+        // Guard to avoid recursive move handlers while we adjust view
+        isAdjustingPopupView = true;
+        // Prefer a gentle pan to keep marker visible without re-centering fully
+        if (typeof map.panInside === 'function') {
+          try {
+            map.panInside(markerLatLng, {
+              animate: true,
+              paddingTopLeft: [24, 24],
+              paddingBottomRight: [24, 200]
+            });
+          } catch (e) {
+            map.panTo(markerLatLng, { animate: true });
+          }
+        } else {
+          map.panTo(markerLatLng, { animate: true });
+        }
         
         setTimeout(() => {
           e.target.openPopup();
@@ -814,13 +866,24 @@
           
           if (popupElement) {
             const rect = popupElement.getBoundingClientRect();
-            const viewportHeight = window.innerHeight;
-            
-            if (rect.bottom > viewportHeight) {
-              const adjustment = (rect.bottom - viewportHeight + 20) / 1000000;
-              map.panTo([markerLatLng.lat - adjustment, markerLatLng.lng], { animate: true });
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const pad = 16; // minimal padding
+
+            // Fallback to pixel-based pan if needed (older Leaflet without panInside)
+            if (typeof map.panInside !== 'function') {
+              let dx = 0, dy = 0;
+              if (rect.right > vw - pad) dx = Math.min(rect.right - vw + pad, 200);
+              if (rect.left < pad) dx = Math.max(rect.left - pad, -200);
+              if (rect.bottom > vh - pad) dy = Math.min(rect.bottom - vh + pad, 250);
+              if (rect.top < pad) dy = Math.max(rect.top - pad, -250);
+              if (dx !== 0 || dy !== 0) {
+                map.panBy([dx, dy], { animate: true });
+              }
             }
           }
+          // Release guard shortly after animations complete
+          setTimeout(() => { isAdjustingPopupView = false; }, 400);
         }, 300);
       });
 
@@ -829,13 +892,22 @@
 
     // Updated renderMarkers with aggressive lazy loading
     function renderMarkers(data) {
-      // Remove all markers from map
-      markerCache.forEach(marker => map.removeLayer(marker));
+      const toShow = new Set(data.map(r => r.id));
 
-      // Add markers for all restaurants in data
-      data.forEach(r => {
-        const marker = markerCache.get(r.id);
-        if (marker) marker.addTo(map);
+      markerCache.forEach((marker, id) => {
+        const shouldShow = toShow.has(id);
+        const isOnMap = map.hasLayer(marker);
+        const popup = marker.getPopup();
+        const isOpen = popup ? popup.isOpen() : false;
+
+        if (shouldShow) {
+          if (!isOnMap) marker.addTo(map);
+        } else {
+          // Hide only if popup isn't open; keep open popups visible
+          if (isOnMap && !isOpen) {
+            map.removeLayer(marker);
+          }
+        }
       });
     }
 
@@ -929,15 +1001,7 @@
         });
     }
 
-    // New function to setup map event listeners
-    function setupMapEventListeners() {
-      map.on('moveend', () => {
-        clearTimeout(loadDataTimeout);
-        loadDataTimeout = setTimeout(() => {
-          loadDataForCurrentView();
-        }, 300); // Debounce API calls
-      });
-    }
+    
     function applyFilters() {
       const filtered = filterData(allRestaurantData);
       

@@ -264,7 +264,8 @@ def get_restaurants():
                 rl.address, rl.city, rl.state, rl.zip,
                 rl.has_drive_thru, rl.has_wifi,
                 rl.has_online_ordering, rl.has_catering,
-                rl.dine_in_hours, rl.drive_thru_hours
+                rl.dine_in_hours, rl.drive_thru_hours,
+                rl.phone_number, rl.ubereats_link, rl.doordash_link
             FROM restaurant_locations rl
             LEFT JOIN companies c ON TRIM(rl.company_id) = TRIM(c.name)
             WHERE rl.latitude IS NOT NULL 
@@ -334,6 +335,10 @@ def get_restaurants():
             "is_24h_drive_thru": is_24_hour(drive_thru_hours) if drive_thru_hours else False,
             "open_late_dine_in": is_open_late(dine_in_hours) if dine_in_hours else False,
             "open_late_drive_thru": is_open_late(drive_thru_hours) if drive_thru_hours else False,
+            # New fields for frontend popup
+            "phone_number": row[15],
+            "ubereats_link": row[16],
+            "doordash_link": row[17],
         })
     return jsonify(result)
 
