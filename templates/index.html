@@ -592,32 +592,42 @@
         return null;
       }
 
+      // Utility: Get "Open until X" or opening countdown
+      function getHoursDisplay(isOpen, hours) {
+        if (!hours || hours.length < 2) return isOpen ? 'Open now' : 'Closed';
+        
+        const [openTime, closeTime] = hours;
+        
+        if (isOpen) {
+          // Show "Open until X time" or "Open 24h"
+          if (openTime === "00:00" && closeTime === "23:59") {
+            return "Open 24h";
+          }
+          
+          // Handle overnight closing (e.g., 6am - 3am)
+          if (closeTime < openTime) {
+            const closeHour = parseInt(closeTime.split(':')[0]);
+            const currentHour = now.getHours();
+            
+            // If current time is after midnight and before close time
+            if (currentHour <= closeHour) {
+              return `Open until ${formatTime(closeTime)}`;
+            }
+            // If current time is after open time (before midnight)
+            return `Open until ${formatTime(closeTime)} (tomorrow)`;
+          } else {
+            return `Open until ${formatTime(closeTime)}`;
+          }
+        } else {
+          return getOpeningCountdown(hours) || 'Closed';
+        }
+      }
+
       const dineInHoursToday = getTodayHours(restaurant.normalized_hours_dine_in);
       const driveThruHoursToday = getTodayHours(restaurant.normalized_hours_drive_thru);
 
-      const dineInStatus = dineInOpen
-        ? `Open Now${dineInHoursToday ? ` (${formatTime(dineInHoursToday[0])} - ${formatTime(dineInHoursToday[1])})` : ''}`
-        : (getOpeningCountdown(dineInHoursToday) || 'Closed');
-
-      const driveThruStatus = driveThruOpen
-        ? `Open Now${driveThruHoursToday ? ` (${formatTime(driveThruHoursToday[0])} - ${formatTime(driveThruHoursToday[1])})` : ''}`
-        : (getOpeningCountdown(driveThruHoursToday) || 'Closed');
-
-      const featureIcons = {
-        has_drive_thru: '🚗 Drive-Thru',
-        has_wifi: '📶 Wi-Fi',
-        has_online_ordering: '💻 Online Ordering',
-        has_catering: '🎉 Catering'
-      };
-      console.log(`Rendering popup for ${restaurant.name || restaurant.company}`);
-      const features = Object.entries(featureIcons)
-        .filter(([key]) => restaurant[key])
-        .map(([, label]) => `
-          <div class="info-row">
-            <div class="info-icon">✅</div>
-            <div class="info-text">${label}</div>
-          </div>`)
-        .join('');
+      const dineInStatus = getHoursDisplay(dineInOpen, dineInHoursToday);
+      const driveThruStatus = getHoursDisplay(driveThruOpen, driveThruHoursToday);
 
       // Helper to find delivery URLs across possible field names
       const getFirstUrl = (obj, keys) => {
@@ -627,62 +637,53 @@
         }
         return null;
       };
-  const doorDashUrl = getFirstUrl(restaurant, ['doordash_link', 'doordash', 'door_dash_url', 'dd_url']);
-  const uberEatsUrl = getFirstUrl(restaurant, ['ubereats_link', 'uber_eats_url', 'uber_eats', 'uber_url']);
+      
+      const doorDashUrl = getFirstUrl(restaurant, ['doordash_link', 'doordash', 'door_dash_url', 'dd_url']);
+      const uberEatsUrl = getFirstUrl(restaurant, ['ubereats_link', 'uber_eats_url', 'uber_eats', 'uber_url']);
 
       return `
-        <div class="modern-popup">
-          <div class="popup-header">
-            <div class="popup-title">${restaurant.company}</div>
-            <div class="popup-subtitle">${restaurant.name || restaurant.company}</div>
-          </div>
-          <div class="popup-body">
-            <div class="popup-info">
-              <div class="info-row">
-                <div class="info-icon address">📍</div>
-                <div class="info-text">
-                  <div class="info-label">Address</div>
-                  <div class="info-value">${restaurant.address}</div>
-                </div>
+        <div class="restaurant-card">
+          <div class="card-header">
+            <div class="header-main">
+              <h3 class="restaurant-name">${restaurant.company}</h3>
+              <div class="hours-info">
+                <div class="primary-hours ${dineInOpen ? '' : 'closed'}">${dineInStatus}</div>
+                ${restaurant.has_drive_thru && driveThruHoursToday ? `
+                <div class="drive-thru-hours">Drive-thru: ${driveThruStatus}</div>` : ''}
               </div>
-              ${phone ? `
-              <div class="info-row">
-                <div class="info-icon">📞</div>
-                <div class="info-text">
-                  <div class="info-label">Phone</div>
-                  <div class="info-value">
-                    <a class="phone-btn" href="tel:${sanitizedTel}" aria-label="Call ${restaurant.name || restaurant.company}">${phone}</a>
-                  </div>
-                </div>
-              </div>` : ''}
-              <div class="info-row">
-                <div class="info-icon">🍽️</div>
-                <div class="info-text">
-                  <div class="info-label">Dine-In</div>
-                  <div class="info-value ${dineInOpen ? 'open' : 'closed'}">
-                    ${dineInStatus}
-                  </div>
-                </div>
-              </div>
-              ${restaurant.has_drive_thru ? `
-              <div class="info-row">
-                <div class="info-icon">🚗</div>
-                <div class="info-text">
-                  <div class="info-label">Drive-Thru</div>
-                  <div class="info-value ${driveThruOpen ? 'open' : 'closed'}">
-                    ${driveThruStatus}
-                  </div>
-                </div>
-              </div>` : ''}
-              ${features}
             </div>
           </div>
-          <div class="popup-actions">
-            ${doorDashUrl ? `<a class="popup-btn doordash" href="${doorDashUrl}" target="_blank" rel="noopener">DoorDash</a>` : ''}
-            ${uberEatsUrl ? `<a class="popup-btn ubereats" href="${uberEatsUrl}" target="_blank" rel="noopener">Uber Eats</a>` : ''}
-            <button class="popup-btn secondary" onclick='getDirectionsRobust(${JSON.stringify(restaurant.address || "")}, ${JSON.stringify(restaurant.city || "")}, ${JSON.stringify(restaurant.state || "")}, ${JSON.stringify(restaurant.zip || "")})'>
-              🧭 Directions
-            </button>
+          
+          <div class="card-content">
+            <div class="contact-section">
+              <button class="contact-btn directions-contact" onclick='getDirectionsRobust(${JSON.stringify(restaurant.address || "")}, ${JSON.stringify(restaurant.city || "")}, ${JSON.stringify(restaurant.state || "")}, ${JSON.stringify(restaurant.zip || "")})'>
+                Directions
+              </button>
+              
+              ${phone ? `
+              <a href="tel:${sanitizedTel}" class="contact-btn call-contact">
+                Call
+              </a>` : ''}
+            </div>
+
+            ${(restaurant.has_wifi || restaurant.has_online_ordering || restaurant.has_catering) ? `
+            <div class="features-section">
+              ${restaurant.has_wifi ? '<span class="feature-tag wifi">🛜 WiFi</span>' : ''}
+              ${restaurant.has_online_ordering ? '<span class="feature-tag online-ordering">💻 Online Ordering</span>' : ''}
+              ${restaurant.has_catering ? '<span class="feature-tag catering">🍽️ Catering</span>' : ''}
+            </div>` : ''}
+
+            <div class="actions-section">
+              ${doorDashUrl ? `
+              <a href="${doorDashUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn doordash-btn">
+                DoorDash
+              </a>` : ''}
+              
+              ${uberEatsUrl ? `
+              <a href="${uberEatsUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn ubereats-btn">
+                Uber Eats
+              </a>` : ''}
+            </div>
           </div>
         </div>
       `;
@@ -827,8 +828,8 @@
       }
 
       marker.bindPopup(createModernPopup(r), {
-        maxWidth: 420,
-        className: 'modern-popup-container',
+        maxWidth: 350,
+        className: 'custom-popup-container',
         autoPan: true,
         offset: [0, 0],
         closeButton: true,
