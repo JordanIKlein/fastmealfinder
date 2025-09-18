@@ -81,7 +81,7 @@
       </div>
 
       <div class="filter-group">
-        <label>Special Filters</label>
+        <label>Filters</label>
         <div class="checkbox-group">
           <div class="checkbox-item">
             <input type="checkbox" id="openNow">
@@ -94,14 +94,6 @@
           <div class="checkbox-item">
             <input type="checkbox" id="open24h">
             <span>24-Hour</span>
-          </div>
-          <div class="checkbox-item">
-            <input type="checkbox" id="openLate">
-            <span>Open Late, after 9pm</span>
-          </div>
-          <div class="checkbox-item">
-            <input type="checkbox" id="wifi">
-            <span>Wi-Fi</span>
           </div>
         </div>
       </div>
@@ -206,6 +198,8 @@
   let markerCache = new Map();     // key: restaurant.id, value: Leaflet marker
   // Guard to prevent recursive move/zoom handlers during programmatic pans
   let isAdjustingPopupView = false;
+  // Track if we've already populated the dropdown from an unbounded fetch
+  let companiesLoadedGlobally = false;
 
 
     const southWest = L.latLng(42.2406, -71.1912);
@@ -464,12 +458,10 @@
 
     function getFilters() {
       return {
-        openNow: document.getElementById('openNow').checked,
-        driveThru: document.getElementById('driveThru').checked,
-        open24h: document.getElementById('open24h').checked,
-        openLate: document.getElementById('openLate').checked,
-        wifi: document.getElementById('wifi').checked,
-        company: document.getElementById('companySelect').value
+        openNow: document.getElementById('openNow')?.checked,
+        driveThru: document.getElementById('driveThru')?.checked,
+        open24h: document.getElementById('open24h')?.checked,
+        company: document.getElementById('companySelect')?.value
       };
     }
 
@@ -494,10 +486,6 @@
           document.getElementById('driveThru').checked = filters.driveThru;
         if (filters.open24h !== undefined)
           document.getElementById('open24h').checked = filters.open24h;
-        if (filters.openLate !== undefined)
-          document.getElementById('openLate').checked = filters.openLate;
-        if (filters.wifi !== undefined)
-          document.getElementById('wifi').checked = filters.wifi;
         if (filters.company !== undefined)
           document.getElementById('companySelect').value = filters.company;
       } catch (e) {
@@ -534,19 +522,63 @@
       const onlyOpenNow = document.getElementById('openNow')?.checked;
       const onlyDriveThru = document.getElementById('driveThru')?.checked;
       const onlyOpen24h = document.getElementById('open24h')?.checked;
-      const onlyOpenLate = document.getElementById('openLate')?.checked;
-      const onlyWifi = document.getElementById('wifi')?.checked;
 
       return data.filter(item => {
         const companyMatch = !selectedCompany || item.company === selectedCompany;
         const driveThruMatch = !onlyDriveThru || item.has_drive_thru === true;
         const openNowMatch = !onlyOpenNow || item.open_now_dine_in === true || item.open_now_drive_thru === true;
         const open24hMatch = !onlyOpen24h || item.is_24h_dine_in === true || item.is_24h_drive_thru === true;
-        const openLateMatch = !onlyOpenLate || item.open_late_dine_in === true || item.open_late_drive_thru === true;
-        const wifiMatch = !onlyWifi || item.has_wifi === true;
 
-        return companyMatch && driveThruMatch && openNowMatch && open24hMatch && openLateMatch && wifiMatch;
+        return companyMatch && driveThruMatch && openNowMatch && open24hMatch;
       });
+    }
+
+    // Populate the restaurant/company dropdown from data
+    function populateCompanyDropdown(data) {
+      const select = document.getElementById('companySelect');
+      if (!select) return;
+      const currentValue = select.value;
+      const companySet = new Set((data || []).map(r => r.company).filter(Boolean));
+      const companies = Array.from(companySet).sort((a,b) => a.localeCompare(b));
+  select.innerHTML = '<option value="">All Restaurants</option>';
+      companies.forEach(c => {
+        const option = document.createElement('option');
+        option.value = c;
+        option.textContent = c;
+        select.appendChild(option);
+      });
+      if (currentValue && companySet.has(currentValue)) {
+        select.value = currentValue;
+      }
+      // If there's a saved filter, prefer restoring it on first population
+      if (!currentValue) {
+        try {
+          const saved = localStorage.getItem('fastMealFilters');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed && parsed.company && companySet.has(parsed.company)) {
+              select.value = parsed.company;
+            }
+          }
+        } catch (e) {
+          console.warn('Could not restore saved company filter:', e);
+        }
+      }
+    }
+    // Fallback: populate dropdown with all companies across all data
+    async function populateCompaniesFromAllData() {
+      if (companiesLoadedGlobally) return;
+      try {
+        const res = await fetch('/api/restaurants');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          // Do not add all markers; only use for dropdown + cache
+          populateCompanyDropdown(data);
+          companiesLoadedGlobally = true;
+        }
+      } catch (err) {
+        console.error('Failed to load companies for dropdown:', err);
+      }
     }
     //Marker Popup Creation
     function createModernPopup(restaurant) {
@@ -948,7 +980,7 @@
 
     // Helper function (unchanged)
     function getLogoUrl(company) {
-      return imageCache.get(company) || null;
+      return imageCache.get(company) || `/static/images/logos/${sanitizeCompanyName(company)}`;
     }
 
     // Preload images for visible restaurants
@@ -987,6 +1019,17 @@
             }
           });
 
+          // Sync in-memory list for filters and dropdown
+          allRestaurantData = Array.from(restaurantCache.values());
+          populateCompanyDropdown(allRestaurantData);
+
+          // If the current view returned nothing (or very few) and it's the first load,
+          // populate the dropdown using all companies so it doesn't look empty.
+          const hasCompanies = new Set((allRestaurantData || []).map(r => r.company).filter(Boolean)).size > 0;
+          if (!hasCompanies) {
+            populateCompaniesFromAllData();
+          }
+
           // Preload images for new companies
           const uniqueCompanies = [...new Set(data.map(r => r.company))];
           Promise.all(uniqueCompanies.map(company => preloadAndCacheImage(company)))
@@ -994,8 +1037,9 @@
               console.log(`Preloaded ${uniqueCompanies.length} company logos`);
             });
 
-          // Render all cached markers (optionally filtered)
-          renderMarkers(Array.from(restaurantCache.values()));
+          // Render filtered view based on current filters
+          const filtered = filterData(allRestaurantData);
+          renderMarkers(filtered);
         })
         .catch(error => {
           console.error('Error loading restaurant data:', error);
@@ -1004,23 +1048,8 @@
 
     
     function applyFilters() {
+      populateCompanyDropdown(allRestaurantData);
       const filtered = filterData(allRestaurantData);
-      
-      // Update company dropdown with all available companies
-      const select = document.getElementById('companySelect');
-      if (select && allRestaurantData.length > 0) {
-        const currentValue = select.value;
-        const companySet = new Set(allRestaurantData.map(r => r.company));
-        select.innerHTML = '<option value="">All Companies</option>';
-        companySet.forEach(c => {
-          const option = document.createElement('option');
-          option.value = c;
-          option.textContent = c;
-          select.appendChild(option);
-        });
-        select.value = currentValue; // Restore selection
-      }
-      
       renderMarkers(filtered);
     }
 
@@ -1035,24 +1064,9 @@
         .then(res => res.json())
         .then(data => {
           restaurantData = data;
-          
-          // Populate company dropdown
-          const select = document.getElementById('companySelect');
-          if (select.options.length <= 1) {
-            const companySet = new Set(data.map(r => r.company));
-            select.innerHTML = '<option value="">All Companies</option>';
-            companySet.forEach(c => {
-              const option = document.createElement('option');
-              option.value = c;
-              option.textContent = c;
-              select.appendChild(option);
-            });
-            
-            // Load saved filters
-            loadFilters();
-          }
-
-          // Apply current filters and render
+          allRestaurantData = data;
+          populateCompanyDropdown(data);
+          loadFilters();
           const filtered = filterData(data);
           renderMarkers(filtered);
         })
@@ -1079,6 +1093,8 @@
             }
           ];
           restaurantData = sampleData;
+          allRestaurantData = sampleData;
+          populateCompanyDropdown(sampleData);
           renderMarkers(sampleData);
           
           // Load city selection AFTER sample data is rendered
@@ -1150,17 +1166,23 @@
         loadFilters();
         addUserLocationMarker();
       }, 50);
+      // Ensure the company dropdown gets populated even if initial viewport has no data
+      setTimeout(() => {
+        const select = document.getElementById('companySelect');
+        if (select && select.options.length <= 1) {
+          populateCompaniesFromAllData();
+        }
+      }, 600);
       //test
       // Setup event listeners
       document.getElementById('darkModeToggle').addEventListener('click', toggleDarkMode);
       document.getElementById('openNow').addEventListener('change', applyFilters);
       document.getElementById('driveThru').addEventListener('change', applyFilters);
-      document.getElementById('open24h').addEventListener('change', applyFilters);
-      document.getElementById('openLate').addEventListener('change', applyFilters);
+  document.getElementById('open24h').addEventListener('change', applyFilters);
       document.getElementById('companySelect').addEventListener('change', applyFilters);
       document.getElementById('locationBtn').addEventListener('click', useMyLocation);
       document.getElementById('citySelect').addEventListener('change', handleCityChange);
-      document.getElementById('wifi').addEventListener('change', applyFilters);
+      
       // System dark mode listener
       if (window.matchMedia) {
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');

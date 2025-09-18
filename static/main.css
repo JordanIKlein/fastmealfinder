@@ -103,7 +103,7 @@ html, body {
     top: 100px;
     left: -350px;
     width: 320px;
-    height: calc(100% - 120px);
+    height: calc(100% - 200px);
     background-color: var(--filter-bg);
     box-shadow: 3px 0 15px var(--filter-shadow);
     z-index: 1200;
