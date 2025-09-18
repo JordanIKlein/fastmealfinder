@@ -104,13 +104,16 @@
       </div>
     </div>
 
-    <div id="map"></div>
 
-    <div class="legend">
-      <div><span class="blue"></span> You</div>
-      <div><span class="green"></span> Open</div>
-      <div><span class="red"></span> Closed</div>
+    <div id="map"></div>
+    <!-- Custom Centered Popup Overlay -->
+    <div id="centeredPopupOverlay" class="centered-popup-overlay" style="display:none;">
+      <div class="centered-popup-content">
+        <button class="centered-popup-close" onclick="closeCenteredPopup()" aria-label="Close popup">&times;</button>
+        <div id="centeredPopupInner"></div>
+      </div>
     </div>
+
     <!-- Footer -->
     <footer class="footer">
       <div class="footer-content">
@@ -357,7 +360,6 @@
           function(position) {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
-            
             // Check if location is within Boston bounds
             if (lat >= 42.2406 && lat <= 42.4430 && lng >= -71.1912 && lng <= -70.972783) {
               map.setView([lat, lng], 15);
@@ -365,7 +367,6 @@
               if (window.userLocationMarker) {
                 map.removeLayer(window.userLocationMarker);
               }
-              
               window.userLocationMarker = L.circleMarker([lat, lng], {
                 radius: 8,
                 fillColor: '#3388ff',
@@ -374,7 +375,8 @@
                 opacity: 1,
                 fillOpacity: 0.9
               }).addTo(map);
-              
+              // Refresh all open popups to show distance
+              refreshAllOpenPopups();
               locationBtn.textContent = '📍';
               locationBtn.disabled = false;
             } else {
@@ -394,6 +396,19 @@
       } else {
         alert('Geolocation is not supported by this browser.');
       }
+    // Helper: Refresh all open popups to update distance label
+    function refreshAllOpenPopups() {
+      markerCache.forEach((marker, id) => {
+        const popup = marker.getPopup();
+        if (popup && popup.isOpen()) {
+          // Re-create popup content with updated distance
+          const r = restaurantCache.get(id);
+          if (r) {
+            popup.setContent(createModernPopup(r));
+          }
+        }
+      });
+    }
     }
 
     // Add this function for the city dropdown
@@ -477,8 +492,14 @@
     function loadFilters() {
       try {
         const saved = localStorage.getItem('fastMealFilters');
-        if (!saved) return;
-
+        if (!saved) {
+          // Default: show only open restaurants
+          document.getElementById('openNow').checked = true;
+          document.getElementById('driveThru').checked = false;
+          document.getElementById('open24h').checked = false;
+          document.getElementById('companySelect').value = '';
+          return;
+        }
         const filters = JSON.parse(saved);
         if (filters.openNow !== undefined)
           document.getElementById('openNow').checked = filters.openNow;
@@ -584,35 +605,49 @@
     function createModernPopup(restaurant) {
       const dineInOpen = restaurant.open_now_dine_in;
       const driveThruOpen = restaurant.open_now_drive_thru;
-      // Support multiple possible phone field names from API/DB
       const phone = restaurant.phone_number || restaurant.phone || restaurant.phoneNumber || null;
       const sanitizedTel = phone ? (String(phone).replace(/[^+0-9]/g, '')) : null;
-
       const now = new Date();
 
-      // Utility: Format 24h string to 12h AM/PM time
+      // --- Distance label logic ---
+      let distanceLabel = '';
+      if (window.userLocationMarker && window.userLocationMarker.getLatLng) {
+        try {
+          const userLatLng = window.userLocationMarker.getLatLng();
+          const R = 6371e3; // metres
+          const φ1 = userLatLng.lat * Math.PI/180;
+          const φ2 = restaurant.latitude * Math.PI/180;
+          const Δφ = (restaurant.latitude-userLatLng.lat) * Math.PI/180;
+          const Δλ = (restaurant.longitude-userLatLng.lng) * Math.PI/180;
+          const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          const d = R * c; // meters
+          const miles = d / 1609.344;
+          let display = `~${miles.toFixed(1)} miles`;
+          distanceLabel = `<span class="distance-label">${display} away</span>`;
+        } catch (e) { /* ignore */ }
+      }
+
+      // --- End distance label logic ---
+
       function formatTime(timeStr) {
         const [hour, minute] = timeStr.split(':').map(Number);
         const date = new Date();
         date.setHours(hour, minute);
         return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
       }
-
-      // Utility: Get today's hours range
       function getTodayHours(hoursMap) {
         const today = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
         return hoursMap?.[today] || null;
       }
-
-      // Utility: Get "Opens in X mins/hours" string
       function getOpeningCountdown(hours) {
         if (!hours || hours.length < 2) return null;
         const [startTime] = hours;
         const [startHour, startMin] = startTime.split(':').map(Number);
-
         const openTime = new Date(now);
         openTime.setHours(startHour, startMin, 0, 0);
-
         if (openTime > now) {
           const diffMs = openTime - now;
           const diffMins = Math.round(diffMs / 60000);
@@ -623,29 +658,19 @@
         }
         return null;
       }
-
-      // Utility: Get "Open until X" or opening countdown
       function getHoursDisplay(isOpen, hours) {
         if (!hours || hours.length < 2) return isOpen ? 'Open now' : 'Closed';
-        
         const [openTime, closeTime] = hours;
-        
         if (isOpen) {
-          // Show "Open until X time" or "Open 24h"
           if (openTime === "00:00" && closeTime === "23:59") {
             return "Open 24h";
           }
-          
-          // Handle overnight closing (e.g., 6am - 3am)
           if (closeTime < openTime) {
             const closeHour = parseInt(closeTime.split(':')[0]);
             const currentHour = now.getHours();
-            
-            // If current time is after midnight and before close time
             if (currentHour <= closeHour) {
               return `Open until ${formatTime(closeTime)}`;
             }
-            // If current time is after open time (before midnight)
             return `Open until ${formatTime(closeTime)} (tomorrow)`;
           } else {
             return `Open until ${formatTime(closeTime)}`;
@@ -654,14 +679,10 @@
           return getOpeningCountdown(hours) || 'Closed';
         }
       }
-
       const dineInHoursToday = getTodayHours(restaurant.normalized_hours_dine_in);
       const driveThruHoursToday = getTodayHours(restaurant.normalized_hours_drive_thru);
-
       const dineInStatus = getHoursDisplay(dineInOpen, dineInHoursToday);
       const driveThruStatus = getHoursDisplay(driveThruOpen, driveThruHoursToday);
-
-      // Helper to find delivery URLs across possible field names
       const getFirstUrl = (obj, keys) => {
         for (const k of keys) {
           const v = obj[k];
@@ -669,15 +690,16 @@
         }
         return null;
       };
-      
       const doorDashUrl = getFirstUrl(restaurant, ['doordash_link', 'doordash', 'door_dash_url', 'dd_url']);
       const uberEatsUrl = getFirstUrl(restaurant, ['ubereats_link', 'uber_eats_url', 'uber_eats', 'uber_url']);
-
       return `
         <div class="restaurant-card">
           <div class="card-header">
             <div class="header-main">
-              <h3 class="restaurant-name">${restaurant.company}</h3>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <h3 class="restaurant-name" style="margin-bottom:0;">${restaurant.company}</h3>
+                ${distanceLabel ? distanceLabel : ''}
+              </div>
               <div class="hours-info">
                 <div class="primary-hours ${dineInOpen ? '' : 'closed'}">${dineInStatus}</div>
                 ${restaurant.has_drive_thru && driveThruHoursToday ? `
@@ -685,32 +707,27 @@
               </div>
             </div>
           </div>
-          
           <div class="card-content">
             <div class="contact-section">
               <button class="contact-btn directions-contact" onclick='getDirectionsRobust(${JSON.stringify(restaurant.address || "")}, ${JSON.stringify(restaurant.city || "")}, ${JSON.stringify(restaurant.state || "")}, ${JSON.stringify(restaurant.zip || "")})'>
                 Directions
               </button>
-              
               ${phone ? `
               <a href="tel:${sanitizedTel}" class="contact-btn call-contact">
                 Call
               </a>` : ''}
             </div>
-
             ${(restaurant.has_wifi || restaurant.has_online_ordering || restaurant.has_catering) ? `
             <div class="features-section">
               ${restaurant.has_wifi ? '<span class="feature-tag wifi">🛜 WiFi</span>' : ''}
               ${restaurant.has_online_ordering ? '<span class="feature-tag online-ordering">💻 Online Ordering</span>' : ''}
               ${restaurant.has_catering ? '<span class="feature-tag catering">🍽️ Catering</span>' : ''}
             </div>` : ''}
-
             <div class="actions-section">
               ${doorDashUrl ? `
               <a href="${doorDashUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn doordash-btn">
                 DoorDash
               </a>` : ''}
-              
               ${uberEatsUrl ? `
               <a href="${uberEatsUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn ubereats-btn">
                 Uber Eats
@@ -759,6 +776,21 @@
     
     function sanitizeCompanyName(name) {
       return name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '').replace(/&/g, 'and');
+    }
+
+    // Show custom centered popup overlay
+    function showCenteredPopup(restaurant) {
+      const overlay = document.getElementById('centeredPopupOverlay');
+      const inner = document.getElementById('centeredPopupInner');
+      inner.innerHTML = createModernPopup(restaurant);
+      overlay.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeCenteredPopup() {
+      const overlay = document.getElementById('centeredPopupOverlay');
+      overlay.style.display = 'none';
+      document.body.style.overflow = '';
     }
 
     // Optimized marker creation with delayed image loading
@@ -840,6 +872,7 @@
       const marker = L.marker([r.latitude, r.longitude], { 
         icon: createCircleIcon(r.company, false)
       });
+      marker._restaurantId = r.id;
       
       if (addToMap) {
         marker.addTo(map);
@@ -859,69 +892,29 @@
         });
       }
 
-      marker.bindPopup(createModernPopup(r), {
-        maxWidth: 350,
-        className: 'custom-popup-container',
-        autoPan: true,
-        offset: [0, 0],
-        closeButton: true,
-        closeOnClick: false,
-        autoClose: false,
-        // Disable internal keepInView to avoid recursion with maxBounds
-        keepInView: false
-      });
+
+      // Remove default popup binding
+      // marker.bindPopup(createModernPopup(r), { ... });
 
       marker.on('click', function (e) {
-        const markerLatLng = e.latlng;
-        const map = e.target._map;
-        // Guard to avoid recursive move handlers while we adjust view
-        isAdjustingPopupView = true;
-        // Prefer a gentle pan to keep marker visible without re-centering fully
-        if (typeof map.panInside === 'function') {
-          try {
-            map.panInside(markerLatLng, {
-              animate: true,
-              paddingTopLeft: [24, 24],
-              paddingBottomRight: [24, 200]
-            });
-          } catch (e) {
-            map.panTo(markerLatLng, { animate: true });
-          }
-        } else {
-          map.panTo(markerLatLng, { animate: true });
+        // Always regenerate popup content to update distance label
+        let restaurantObj = null;
+        if (marker._restaurantId && restaurantCache.has(marker._restaurantId)) {
+          restaurantObj = restaurantCache.get(marker._restaurantId);
         }
-        
-        setTimeout(() => {
-          e.target.openPopup();
-          
-          const popup = e.target.getPopup();
-          const popupElement = popup.getElement();
-          
-          if (popupElement) {
-            const rect = popupElement.getBoundingClientRect();
-            const vw = window.innerWidth;
-            const vh = window.innerHeight;
-            const pad = 16; // minimal padding
-
-            // Fallback to pixel-based pan if needed (older Leaflet without panInside)
-            if (typeof map.panInside !== 'function') {
-              let dx = 0, dy = 0;
-              if (rect.right > vw - pad) dx = Math.min(rect.right - vw + pad, 200);
-              if (rect.left < pad) dx = Math.max(rect.left - pad, -200);
-              if (rect.bottom > vh - pad) dy = Math.min(rect.bottom - vh + pad, 250);
-              if (rect.top < pad) dy = Math.max(rect.top - pad, -250);
-              if (dx !== 0 || dy !== 0) {
-                map.panBy([dx, dy], { animate: true });
-              }
-            }
-          }
-          // Release guard shortly after animations complete
-          setTimeout(() => { isAdjustingPopupView = false; }, 400);
-        }, 300);
+        if (!restaurantObj) {
+          restaurantObj = r;
+        }
+        showCenteredPopup(restaurantObj);
       });
 
       return marker;
     }
+
+    // Close centered popup on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeCenteredPopup();
+    });
 
     // Updated renderMarkers with aggressive lazy loading
     function renderMarkers(data) {
@@ -1178,7 +1171,7 @@
       document.getElementById('darkModeToggle').addEventListener('click', toggleDarkMode);
       document.getElementById('openNow').addEventListener('change', applyFilters);
       document.getElementById('driveThru').addEventListener('change', applyFilters);
-  document.getElementById('open24h').addEventListener('change', applyFilters);
+      document.getElementById('open24h').addEventListener('change', applyFilters);
       document.getElementById('companySelect').addEventListener('change', applyFilters);
       document.getElementById('locationBtn').addEventListener('click', useMyLocation);
       document.getElementById('citySelect').addEventListener('change', handleCityChange);
