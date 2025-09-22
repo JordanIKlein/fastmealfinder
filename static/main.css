@@ -44,6 +44,16 @@
 .centered-popup-close:hover {
   color: #222;
 }
+body.dark .centered-popup-close:hover { color: #ddd; }
+body.dark .centered-popup-content { background: var(--bg-color); border-color: var(--input-border); box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+body.dark .centered-popup-overlay .card-header { border-color: var(--input-border); }
+body.dark .centered-popup-overlay .restaurant-name { color: var(--text-color); }
+body.dark .centered-popup-overlay .drive-thru-hours { color: var(--text-color); opacity: .75; }
+body.dark .centered-popup-overlay .contact-btn { border-color: var(--btn-bg); color: var(--btn-bg); }
+body.dark .centered-popup-overlay .contact-btn:hover { background: var(--btn-bg); color: var(--btn-text); }
+body.dark .centered-popup-overlay .distance-label { background:#23272f; color:#e0e0e0; box-shadow:0 1px 3px rgba(0,0,0,0.6); }
+.centered-popup-content hr { border:none; border-top:1px solid var(--input-border); margin:12px 0; }
+body.dark .centered-popup-content hr { border-top-color: var(--input-border); }
 
 /* Ensure the restaurant card inside overlay looks like the popup */
 .centered-popup-overlay .restaurant-card {
@@ -170,7 +180,6 @@
   background: #222;
   border-color: #222;
   color: white !important;
-}
 }
 .centered-popup-content {
   background: #fff;

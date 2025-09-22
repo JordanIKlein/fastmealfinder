@@ -84,7 +84,7 @@
         <label>Filters</label>
         <div class="checkbox-group">
           <div class="checkbox-item">
-            <input type="checkbox" id="openNow">
+            <input type="checkbox" id="openNow" checked>
             <span>Open Now</span>
           </div>
           <div class="checkbox-item">
@@ -421,7 +421,7 @@
       
       if (selectedValue) {
         const [lat, lng] = selectedValue.split(',').map(Number);
-        map.setView([lat, lng], 16);
+        map.setView([lat, lng], 14);
         
         // Remove user location marker when selecting a city
         if (window.userLocationMarker) {
@@ -785,6 +785,7 @@
       inner.innerHTML = createModernPopup(restaurant);
       overlay.style.display = 'flex';
       document.body.style.overflow = 'hidden';
+      window.lastRestaurantForPopup = restaurant;
     }
 
     function closeCenteredPopup() {
@@ -1118,6 +1119,12 @@
     function toggleDarkMode() {
       const isDark = document.body.classList.contains('dark');
       setDarkMode(!isDark);
+      // If a centered popup is open, re-render its content so text colors adapt
+      const overlay = document.getElementById('centeredPopupOverlay');
+      if (overlay && overlay.style.display !== 'none' && window.lastRestaurantForPopup) {
+        const inner = document.getElementById('centeredPopupInner');
+        if (inner) inner.innerHTML = createModernPopup(window.lastRestaurantForPopup);
+      }
     }
     function loadAnalytics() {
       // Google Analytics
@@ -1133,8 +1140,8 @@
         gtag('config', 'G-HHP4EYY597');
       };
     }
-    // Updated DOMContentLoaded to prioritize map loading
-    document.addEventListener('DOMContentLoaded', () => {
+  // Updated DOMContentLoaded to prioritize correct filter defaults before data load
+  document.addEventListener('DOMContentLoaded', () => {
       function getInitialDarkMode() {
         const savedMode = localStorage.getItem('fastMealDarkMode');
         if (savedMode !== null) {
@@ -1147,18 +1154,18 @@
       
       // Load city selection first
       loadCitySelection();
-      
-      // Initialize map IMMEDIATELY - highest priority
+      // Load filters BEFORE map init so Open Now default is applied to first render
+      loadFilters();
+      const openNowEl = document.getElementById('openNow');
+      if (openNowEl && !localStorage.getItem('fastMealFilters')) {
+        openNowEl.checked = true; // enforce default
+      }
+      // Initialize map after filters are ready
       initMap(savedDarkMode);
-      
       // Set dark mode after map is initialized
       setDarkMode(savedDarkMode);
-
-      // Critical UI setup first
-      setTimeout(() => {
-        loadFilters();
-        addUserLocationMarker();
-      }, 50);
+      // Add user location marker slightly after
+      setTimeout(() => { addUserLocationMarker(); }, 50);
       // Ensure the company dropdown gets populated even if initial viewport has no data
       setTimeout(() => {
         const select = document.getElementById('companySelect');
@@ -1169,7 +1176,7 @@
       //test
       // Setup event listeners
       document.getElementById('darkModeToggle').addEventListener('click', toggleDarkMode);
-      document.getElementById('openNow').addEventListener('change', applyFilters);
+  document.getElementById('openNow').addEventListener('change', () => { saveFilters(); applyFilters(); });
       document.getElementById('driveThru').addEventListener('change', applyFilters);
       document.getElementById('open24h').addEventListener('change', applyFilters);
       document.getElementById('companySelect').addEventListener('change', applyFilters);
