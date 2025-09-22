@@ -1,3 +1,239 @@
+/* Centered Popup Overlay Styles */
+.centered-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.35);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.centered-popup-content {
+  background: var(--bg-color);
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  max-width: 340px;
+  width: 95vw;
+  padding: 0;
+  position: relative;
+  animation: popup-fade-in 0.25s;
+  overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.centered-popup-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 1.7rem;
+  color: #888;
+  cursor: pointer;
+  z-index: 2;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.centered-popup-close:hover {
+  color: #222;
+}
+body.dark .centered-popup-close:hover { color: #ddd; }
+body.dark .centered-popup-content { background: var(--bg-color); border-color: var(--input-border); box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+body.dark .centered-popup-overlay .card-header { border-color: var(--input-border); }
+body.dark .centered-popup-overlay .restaurant-name { color: var(--text-color); }
+body.dark .centered-popup-overlay .drive-thru-hours { color: var(--text-color); opacity: .75; }
+body.dark .centered-popup-overlay .contact-btn { border-color: var(--btn-bg); color: var(--btn-bg); }
+body.dark .centered-popup-overlay .contact-btn:hover { background: var(--btn-bg); color: var(--btn-text); }
+body.dark .centered-popup-overlay .distance-label { background:#23272f; color:#e0e0e0; box-shadow:0 1px 3px rgba(0,0,0,0.6); }
+.centered-popup-content hr { border:none; border-top:1px solid var(--input-border); margin:12px 0; }
+body.dark .centered-popup-content hr { border-top-color: var(--input-border); }
+
+/* Ensure the restaurant card inside overlay looks like the popup */
+.centered-popup-overlay .restaurant-card {
+  min-width: 280px;
+  max-width: 320px;
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+}
+.centered-popup-overlay .card-header {
+  padding: 16px 16px 12px 16px;
+  border-bottom: 1px solid var(--input-border);
+}
+.centered-popup-overlay .card-content {
+  padding: 16px;
+}
+.centered-popup-overlay .contact-section {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 8px;
+}
+.centered-popup-overlay .contact-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 2px solid var(--btn-bg);
+  background: transparent;
+  color: var(--btn-bg);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  flex: 1;
+}
+.centered-popup-overlay .contact-btn:hover {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  transform: translateY(-1px);
+}
+.centered-popup-overlay .features-section {
+  margin-bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.centered-popup-overlay .feature-tag {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 16px;
+  border: 2px solid;
+  transition: all 0.2s ease;
+}
+.centered-popup-overlay .feature-tag.wifi {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+}
+.centered-popup-overlay .feature-tag.online-ordering {
+  background: linear-gradient(135deg, #9c27b0 0%, #673ab7 100%);
+  color: white;
+  border-color: #9c27b0;
+}
+.centered-popup-overlay .feature-tag.catering {
+  background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
+  color: white;
+  border-color: #ff9800;
+}
+.centered-popup-overlay .feature-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+.centered-popup-overlay .actions-section {
+  display: flex;
+  gap: 8px;
+  flex-direction: column;
+}
+.centered-popup-overlay .action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.centered-popup-overlay .delivery-btn {
+  color: white;
+  font-weight: 600;
+  border: 2px solid;
+}
+.centered-popup-overlay .doordash-btn {
+  background: #ff3008;
+  border-color: #ff3008;
+  color: white !important;
+}
+.centered-popup-overlay .doordash-btn:hover {
+  background: #e02a07;
+  border-color: #e02a07;
+  transform: translateY(-1px);
+  color: white !important;
+}
+.centered-popup-overlay .ubereats-btn {
+  background: #000000;
+  border-color: #000000;
+  color: white !important;
+}
+.centered-popup-overlay .ubereats-btn:hover {
+  background: #222;
+  border-color: #222;
+  color: white !important;
+}
+.centered-popup-content {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  max-width: 380px;
+  width: 95vw;
+  padding: 24px 20px 16px 20px;
+  position: relative;
+  animation: popup-fade-in 0.25s;
+}
+.centered-popup-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #888;
+  cursor: pointer;
+  z-index: 2;
+}
+@keyframes popup-fade-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.centered-popup-overlay .restaurant-card {
+  box-shadow: none;
+  border-radius: 0;
+  background: none;
+  padding: 0;
+}
+.centered-popup-overlay .card-header {
+  margin-bottom: 8px;
+}
+/* Distance label for popup */
+.distance-label {
+  display: inline-block;
+  background: #f3f3f3;
+  color: #444;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin-bottom: 4px;
+  margin-right: 8px;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  vertical-align: top;
+}
+body.dark .distance-label {
+  background: #23272f;
+  color: #e0e0e0;
+}
 :root {
     --bg-color: #fff;
     --text-color: #222;
@@ -103,7 +339,7 @@ html, body {
     top: 100px;
     left: -350px;
     width: 320px;
-    height: calc(100% - 120px);
+    height: calc(100% - 200px);
     background-color: var(--filter-bg);
     box-shadow: 3px 0 15px var(--filter-shadow);
     z-index: 1200;
@@ -256,39 +492,6 @@ html, body {
     background-color: var(--secondary-btn-hover);
 }
 
-/* === Legend Styles === */
-.legend {
-    background-color: var(--legend-bg);
-    padding: 10px 15px;
-    font-size: 14px;
-    position: absolute;
-    bottom: 80px;
-    left: 10px;
-    z-index: 1000;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px var(--legend-shadow);
-    color: var(--text-color);
-    user-select: none;
-}
-
-.legend div {
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-}
-
-.legend span {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    margin-right: 8px;
-    border-radius: 50%;
-    border: 2px solid var(--bg-color);
-}
-/* === Legend Colors === */
-.green { background-color: var(--marker-open); }
-.red { background-color: var(--marker-closed); }
-.blue { background-color: var(--market-you); }
 
 .intro-modal {
     position: fixed;
@@ -344,275 +547,236 @@ html, body {
     color: var(--accent-color, #007bff);
     }
 
-    /* === MODERN POPUP STYLES === */
-    /* Add this CSS to your existing stylesheet */
-
-    .leaflet-popup-content-wrapper {
-    background: var(--bg-color) !important;
-    border: 1px solid var(--input-border) !important;
-    border-radius: 16px !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
+    /* === NEW RESTAURANT CARD POPUP STYLES === */
+    .custom-popup-container {
+      z-index: 2000 !important;
+    }
+    
+    .custom-popup-container .leaflet-popup-content-wrapper {
+      background: var(--bg-color) !important;
+      border: 1px solid var(--input-border) !important;
+      border-radius: 12px !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      z-index: 2000 !important;
     }
 
-    .leaflet-popup-content {
-    margin: 0 !important;
-    padding: 0 !important;
-    color: var(--text-color) !important;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-    line-height: 1.4 !important;
+    .restaurant-card {
+      min-width: 280px;
+      max-width: 320px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    .leaflet-popup-tip { display: none !important; }
-
-    .leaflet-popup-close-button {
-    background: transparent !important;
-    border: none !important;
-    font-size: 20px !important;
-    font-weight: bold !important;
-    color: var(--text-color) !important;
-    padding: 8px !important;
-    margin: 8px !important;
-    border-radius: 50% !important;
-    width: 32px !important;
-    height: 32px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    transition: all 0.2s ease !important;
-    opacity: 0.6 !important;
+    .card-header {
+      padding: 16px 16px 12px 16px;
+      border-bottom: 1px solid var(--input-border);
     }
 
-    .leaflet-popup-close-button:hover {
-    opacity: 1 !important;
-    background: var(--input-border) !important;
-    transform: scale(1.1) !important;
+    .header-main {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
-    .modern-popup {
-    min-width: 240px;
-    max-width: 260px;
+    .restaurant-name {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text-color);
+      line-height: 1.3;
     }
 
-    .popup-header {
-    background: linear-gradient(135deg, var(--btn-bg), var(--btn-hover-bg));
-    color: var(--btn-text);
-    padding: 12px 16px;
-    position: relative;
-    overflow: hidden;
+    .hours-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
-    .popup-header::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
-    pointer-events: none;
+    .primary-hours {
+      font-size: 14px;
+      font-weight: 600;
+      color: #22c55e;
     }
 
-    .popup-title {
-    font-size: 16px;
-    font-weight: 700;
-    margin: 0 0 4px 0;
-    letter-spacing: 0.02em;
+    .primary-hours.closed {
+      color: #ef4444;
     }
 
-    .popup-subtitle {
-    font-size: 12px;
-    opacity: 0.9;
-    margin: 0;
-    font-weight: 400;
+    .drive-thru-hours {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-color);
+      opacity: 0.8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .popup-body {
-    padding: 14px 16px;
-    background: var(--bg-color);
-    overflow-y: auto;
-    max-height: 200px; /* Adjust this depending on your layout */
-    padding: 10px 16px;
-    }
-    .popup-body::-webkit-scrollbar {
-    width: 6px;
-    }
-    .popup-body::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
-    }
-    .popup-info {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    .card-content {
+      padding: 16px;
     }
 
-    .info-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    background: var(--filter-bg);
-    border: 1px solid var(--input-border);
-    border-radius: 8px;
-    transition: all 0.2s ease;
+    .contact-section {
+      margin-bottom: 16px;
+      display: flex;
+      gap: 8px;
     }
 
-    .info-row:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    .contact-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 2px solid var(--btn-bg);
+      background: transparent;
+      color: var(--btn-bg);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+      flex: 1;
     }
 
-    .info-icon {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: bold;
-    color: var(--btn-text);
-    flex-shrink: 0;
+    .contact-btn:hover {
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      transform: translateY(-1px);
     }
 
-    .info-icon.address {
-    background: var(--btn-bg);
+    .info-section {
+      margin-bottom: 16px;
     }
 
-    .info-icon.status {
-    background: var(--marker-open);
+    .features-section {
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
     }
 
-    .info-icon.status.closed {
-    background: var(--marker-closed);
+    .feature-tag {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 16px;
+      border: 2px solid;
+      transition: all 0.2s ease;
     }
 
-    .info-icon.drive-thru {
-    background: var(--secondary-btn);
+    .feature-tag.wifi {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-color: #667eea;
     }
 
-    .info-icon.hours {
-    background: #ff9500;
+    .feature-tag.online-ordering {
+      background: linear-gradient(135deg, #9c27b0 0%, #673ab7 100%);
+      color: white;
+      border-color: #9c27b0;
     }
 
-    .info-text {
-    flex: 1;
-    font-size: 13px;
-    color: var(--text-color);
+    .feature-tag.catering {
+      background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
+      color: white;
+      border-color: #ff9800;
     }
 
-    .info-label {
-    font-weight: 600;
-    margin-bottom: 1px;
+    .feature-tag:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     }
 
-    .info-value {
-    opacity: 0.8;
-    font-size: 12px;
+    .actions-section {
+      display: flex;
+      gap: 8px;
+      flex-direction: column;
     }
 
-    .status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      justify-content: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .status-badge.open {
-    background: rgba(40, 167, 69, 0.1);
-    color: var(--marker-open);
-    border: 1px solid var(--marker-open);
+    .directions-btn {
+      background: var(--btn-bg);
+      color: var(--btn-text);
     }
 
-    .status-badge.closed {
-    background: rgba(220, 53, 69, 0.1);
-    color: var(--marker-closed);
-    border: 1px solid var(--marker-closed);
+    .directions-btn:hover {
+      background: var(--btn-hover-bg);
+      transform: translateY(-1px);
     }
 
-    .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: currentColor;
-    animation: pulse 2s infinite;
+    .delivery-btn {
+      color: white;
+      font-weight: 600;
+      border: 2px solid;
     }
 
-    @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
+    .doordash-btn {
+      background: #ff3008;
+      border-color: #ff3008;
+      color: white !important;
     }
 
-    .popup-actions {
-    padding: 10px 16px;
-    background: var(--filter-bg);
-    border-top: 1px solid var(--input-border);
-    display: flex;
-    gap: 6px;
+    .doordash-btn:hover {
+      background: #e02a07;
+      border-color: #e02a07;
+      transform: translateY(-1px);
+      color: white !important;
     }
 
-    .popup-btn {
-    flex: 1;
-    padding: 8px 12px;
-    border: none;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: center;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
+
+
+    .ubereats-btn {
+      background: #000000;
+      color: #00f4c7 !important;
+      border-color: #00f4c7;
     }
 
-    .popup-btn.primary {
-    background: var(--btn-bg);
-    color: var(--btn-text);
+    .ubereats-btn:hover {
+      background: #1a1a1a;
+      color: #00f4c7;
+      border-color: #00f4c7;
+      transform: translateY(-1px);
     }
 
-    .popup-btn.primary:hover {
-    background: var(--btn-hover-bg);
-    transform: translateY(-1px);
+    /* Ensure consistent styling in dark mode */
+    body.dark .doordash-btn {
+      color: white !important;
     }
 
-    .popup-btn.secondary {
-    background: transparent;
-    color: var(--text-color);
-    border: 1px solid var(--input-border);
+    body.dark .doordash-btn:hover {
+      color: white !important;
     }
 
-    .popup-btn.secondary:hover {
-    background: var(--input-border);
-    transform: translateY(-1px);
+    .btn-icon {
+      font-size: 14px;
     }
 
-    /* Dark mode specific adjustments */
-    body.dark .leaflet-popup-content-wrapper {
-    background: var(--bg-color) !important;
-    border-color: var(--input-border) !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
-    }
-
-    body.dark .leaflet-popup-tip {
-    background: var(--bg-color) !important;
-    border-color: var(--input-border) !important;
-    }
-
-    body.dark .info-row:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    /* Dark mode adjustments */
+    body.dark .custom-popup-container .leaflet-popup-content-wrapper {
+      background: var(--bg-color) !important;
+      border-color: var(--input-border) !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
     }
     /* === Use My Location Button === */
     .location-btn {
@@ -993,16 +1157,6 @@ html, body {
     z-index: 1100;
     }
 
-    /* Legend positioning for mobile */
-    .legend {
-    position: absolute;
-    top: 100px;
-    left: 10px;
-    z-index: 900;
-    height: fit-content; /* Add this line */
-    max-height: calc(100vh - 120px); /* Optional: prevent overflow */
-    overflow-y: auto; /* Optional: add scrolling if content is too tall */
-    }
 
     /* Keep existing modal styles */
     .intro-modal {

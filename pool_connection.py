@@ -1,7 +1,8 @@
 from psycopg2 import pool
-
 from contextlib import contextmanager
-from psycopg2 import pool
+from dotenv import load_dotenv
+import os
+load_dotenv()  # loads .env
 
 class DatabasePoolConnection:
     def __init__(self):
@@ -9,10 +10,10 @@ class DatabasePoolConnection:
             self.db_pool = pool.SimpleConnectionPool(
                 minconn=1,   # Minimum connections in the pool
                 maxconn=50,  # Maximum connections in the pool
-                dbname="CHANGED", 
-                user="CHANGED",
-                password="CHANGED",
-                host="CHANGED"
+                dbname=os.getenv("DB_NAME"),
+                user=os.getenv("DB_USER"),
+                password=os.getenv("DB_PASSWORD"),
+                host=os.getenv("DB_HOST")
             )
             print("Database connection pool created successfully!")
         except Exception as e:

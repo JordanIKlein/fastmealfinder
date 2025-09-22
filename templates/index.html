@@ -81,10 +81,10 @@
       </div>
 
       <div class="filter-group">
-        <label>Special Filters</label>
+        <label>Filters</label>
         <div class="checkbox-group">
           <div class="checkbox-item">
-            <input type="checkbox" id="openNow">
+            <input type="checkbox" id="openNow" checked>
             <span>Open Now</span>
           </div>
           <div class="checkbox-item">
@@ -95,14 +95,6 @@
             <input type="checkbox" id="open24h">
             <span>24-Hour</span>
           </div>
-          <div class="checkbox-item">
-            <input type="checkbox" id="openLate">
-            <span>Open Late, after 9pm</span>
-          </div>
-          <div class="checkbox-item">
-            <input type="checkbox" id="wifi">
-            <span>Wi-Fi</span>
-          </div>
         </div>
       </div>
 
@@ -112,13 +104,16 @@
       </div>
     </div>
 
-    <div id="map"></div>
 
-    <div class="legend">
-      <div><span class="blue"></span> You</div>
-      <div><span class="green"></span> Open</div>
-      <div><span class="red"></span> Closed</div>
+    <div id="map"></div>
+    <!-- Custom Centered Popup Overlay -->
+    <div id="centeredPopupOverlay" class="centered-popup-overlay" style="display:none;">
+      <div class="centered-popup-content">
+        <button class="centered-popup-close" onclick="closeCenteredPopup()" aria-label="Close popup">&times;</button>
+        <div id="centeredPopupInner"></div>
+      </div>
     </div>
+
     <!-- Footer -->
     <footer class="footer">
       <div class="footer-content">
@@ -202,8 +197,12 @@
     let allRestaurantData = []; // Store all restaurant data
     let currentBounds = null;
     let loadDataTimeout = null;
-    let restaurantCache = new Map(); // key: restaurant.id, value: restaurant object
-    let markerCache = new Map();     // key: restaurant.id, value: Leaflet marker
+  let restaurantCache = new Map(); // key: restaurant.id, value: restaurant object
+  let markerCache = new Map();     // key: restaurant.id, value: Leaflet marker
+  // Guard to prevent recursive move/zoom handlers during programmatic pans
+  let isAdjustingPopupView = false;
+  // Track if we've already populated the dropdown from an unbounded fetch
+  let companiesLoadedGlobally = false;
 
 
     const southWest = L.latLng(42.2406, -71.1912);
@@ -248,6 +247,7 @@
         maxBoundsViscosity: 0.8,
         minZoom: 13,
         maxZoom: 18,
+        closePopupOnClick: false,
         // Smoother animations
         fadeAnimation: true,
         zoomAnimation: true,
@@ -297,6 +297,10 @@
       });
       
       map.on('moveend', () => {
+        if (isAdjustingPopupView) {
+          // Skip heavy work triggered by our own pan/center operations
+          return;
+        }
         clearTimeout(moveEndTimeout);
         moveEndTimeout = setTimeout(() => {
           loadDataForCurrentView();
@@ -308,6 +312,9 @@
       });
       
       map.on('zoomend', () => {
+        if (isAdjustingPopupView) {
+          return;
+        }
         clearTimeout(zoomTimeout);
         zoomTimeout = setTimeout(() => {
           applyFilters(); // Refresh markers after zoom
@@ -353,7 +360,6 @@
           function(position) {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
-            
             // Check if location is within Boston bounds
             if (lat >= 42.2406 && lat <= 42.4430 && lng >= -71.1912 && lng <= -70.972783) {
               map.setView([lat, lng], 15);
@@ -361,7 +367,6 @@
               if (window.userLocationMarker) {
                 map.removeLayer(window.userLocationMarker);
               }
-              
               window.userLocationMarker = L.circleMarker([lat, lng], {
                 radius: 8,
                 fillColor: '#3388ff',
@@ -370,7 +375,8 @@
                 opacity: 1,
                 fillOpacity: 0.9
               }).addTo(map);
-              
+              // Refresh all open popups to show distance
+              refreshAllOpenPopups();
               locationBtn.textContent = '📍';
               locationBtn.disabled = false;
             } else {
@@ -390,6 +396,19 @@
       } else {
         alert('Geolocation is not supported by this browser.');
       }
+    // Helper: Refresh all open popups to update distance label
+    function refreshAllOpenPopups() {
+      markerCache.forEach((marker, id) => {
+        const popup = marker.getPopup();
+        if (popup && popup.isOpen()) {
+          // Re-create popup content with updated distance
+          const r = restaurantCache.get(id);
+          if (r) {
+            popup.setContent(createModernPopup(r));
+          }
+        }
+      });
+    }
     }
 
     // Add this function for the city dropdown
@@ -402,7 +421,7 @@
       
       if (selectedValue) {
         const [lat, lng] = selectedValue.split(',').map(Number);
-        map.setView([lat, lng], 16);
+        map.setView([lat, lng], 14);
         
         // Remove user location marker when selecting a city
         if (window.userLocationMarker) {
@@ -454,12 +473,10 @@
 
     function getFilters() {
       return {
-        openNow: document.getElementById('openNow').checked,
-        driveThru: document.getElementById('driveThru').checked,
-        open24h: document.getElementById('open24h').checked,
-        openLate: document.getElementById('openLate').checked,
-        wifi: document.getElementById('wifi').checked,
-        company: document.getElementById('companySelect').value
+        openNow: document.getElementById('openNow')?.checked,
+        driveThru: document.getElementById('driveThru')?.checked,
+        open24h: document.getElementById('open24h')?.checked,
+        company: document.getElementById('companySelect')?.value
       };
     }
 
@@ -475,8 +492,14 @@
     function loadFilters() {
       try {
         const saved = localStorage.getItem('fastMealFilters');
-        if (!saved) return;
-
+        if (!saved) {
+          // Default: show only open restaurants
+          document.getElementById('openNow').checked = true;
+          document.getElementById('driveThru').checked = false;
+          document.getElementById('open24h').checked = false;
+          document.getElementById('companySelect').value = '';
+          return;
+        }
         const filters = JSON.parse(saved);
         if (filters.openNow !== undefined)
           document.getElementById('openNow').checked = filters.openNow;
@@ -484,10 +507,6 @@
           document.getElementById('driveThru').checked = filters.driveThru;
         if (filters.open24h !== undefined)
           document.getElementById('open24h').checked = filters.open24h;
-        if (filters.openLate !== undefined)
-          document.getElementById('openLate').checked = filters.openLate;
-        if (filters.wifi !== undefined)
-          document.getElementById('wifi').checked = filters.wifi;
         if (filters.company !== undefined)
           document.getElementById('companySelect').value = filters.company;
       } catch (e) {
@@ -524,50 +543,111 @@
       const onlyOpenNow = document.getElementById('openNow')?.checked;
       const onlyDriveThru = document.getElementById('driveThru')?.checked;
       const onlyOpen24h = document.getElementById('open24h')?.checked;
-      const onlyOpenLate = document.getElementById('openLate')?.checked;
-      const onlyWifi = document.getElementById('wifi')?.checked;
 
       return data.filter(item => {
         const companyMatch = !selectedCompany || item.company === selectedCompany;
         const driveThruMatch = !onlyDriveThru || item.has_drive_thru === true;
         const openNowMatch = !onlyOpenNow || item.open_now_dine_in === true || item.open_now_drive_thru === true;
         const open24hMatch = !onlyOpen24h || item.is_24h_dine_in === true || item.is_24h_drive_thru === true;
-        const openLateMatch = !onlyOpenLate || item.open_late_dine_in === true || item.open_late_drive_thru === true;
-        const wifiMatch = !onlyWifi || item.has_wifi === true;
 
-        return companyMatch && driveThruMatch && openNowMatch && open24hMatch && openLateMatch && wifiMatch;
+        return companyMatch && driveThruMatch && openNowMatch && open24hMatch;
       });
+    }
+
+    // Populate the restaurant/company dropdown from data
+    function populateCompanyDropdown(data) {
+      const select = document.getElementById('companySelect');
+      if (!select) return;
+      const currentValue = select.value;
+      const companySet = new Set((data || []).map(r => r.company).filter(Boolean));
+      const companies = Array.from(companySet).sort((a,b) => a.localeCompare(b));
+  select.innerHTML = '<option value="">All Restaurants</option>';
+      companies.forEach(c => {
+        const option = document.createElement('option');
+        option.value = c;
+        option.textContent = c;
+        select.appendChild(option);
+      });
+      if (currentValue && companySet.has(currentValue)) {
+        select.value = currentValue;
+      }
+      // If there's a saved filter, prefer restoring it on first population
+      if (!currentValue) {
+        try {
+          const saved = localStorage.getItem('fastMealFilters');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed && parsed.company && companySet.has(parsed.company)) {
+              select.value = parsed.company;
+            }
+          }
+        } catch (e) {
+          console.warn('Could not restore saved company filter:', e);
+        }
+      }
+    }
+    // Fallback: populate dropdown with all companies across all data
+    async function populateCompaniesFromAllData() {
+      if (companiesLoadedGlobally) return;
+      try {
+        const res = await fetch('/api/restaurants');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          // Do not add all markers; only use for dropdown + cache
+          populateCompanyDropdown(data);
+          companiesLoadedGlobally = true;
+        }
+      } catch (err) {
+        console.error('Failed to load companies for dropdown:', err);
+      }
     }
     //Marker Popup Creation
     function createModernPopup(restaurant) {
       const dineInOpen = restaurant.open_now_dine_in;
       const driveThruOpen = restaurant.open_now_drive_thru;
-
+      const phone = restaurant.phone_number || restaurant.phone || restaurant.phoneNumber || null;
+      const sanitizedTel = phone ? (String(phone).replace(/[^+0-9]/g, '')) : null;
       const now = new Date();
 
-      // Utility: Format 24h string to 12h AM/PM time
+      // --- Distance label logic ---
+      let distanceLabel = '';
+      if (window.userLocationMarker && window.userLocationMarker.getLatLng) {
+        try {
+          const userLatLng = window.userLocationMarker.getLatLng();
+          const R = 6371e3; // metres
+          const φ1 = userLatLng.lat * Math.PI/180;
+          const φ2 = restaurant.latitude * Math.PI/180;
+          const Δφ = (restaurant.latitude-userLatLng.lat) * Math.PI/180;
+          const Δλ = (restaurant.longitude-userLatLng.lng) * Math.PI/180;
+          const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          const d = R * c; // meters
+          const miles = d / 1609.344;
+          let display = `~${miles.toFixed(1)} miles`;
+          distanceLabel = `<span class="distance-label">${display} away</span>`;
+        } catch (e) { /* ignore */ }
+      }
+
+      // --- End distance label logic ---
+
       function formatTime(timeStr) {
         const [hour, minute] = timeStr.split(':').map(Number);
         const date = new Date();
         date.setHours(hour, minute);
         return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
       }
-
-      // Utility: Get today's hours range
       function getTodayHours(hoursMap) {
         const today = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
         return hoursMap?.[today] || null;
       }
-
-      // Utility: Get "Opens in X mins/hours" string
       function getOpeningCountdown(hours) {
         if (!hours || hours.length < 2) return null;
         const [startTime] = hours;
         const [startHour, startMin] = startTime.split(':').map(Number);
-
         const openTime = new Date(now);
         openTime.setHours(startHour, startMin, 0, 0);
-
         if (openTime > now) {
           const diffMs = openTime - now;
           const diffMins = Math.round(diffMs / 60000);
@@ -578,75 +658,81 @@
         }
         return null;
       }
-
+      function getHoursDisplay(isOpen, hours) {
+        if (!hours || hours.length < 2) return isOpen ? 'Open now' : 'Closed';
+        const [openTime, closeTime] = hours;
+        if (isOpen) {
+          if (openTime === "00:00" && closeTime === "23:59") {
+            return "Open 24h";
+          }
+          if (closeTime < openTime) {
+            const closeHour = parseInt(closeTime.split(':')[0]);
+            const currentHour = now.getHours();
+            if (currentHour <= closeHour) {
+              return `Open until ${formatTime(closeTime)}`;
+            }
+            return `Open until ${formatTime(closeTime)} (tomorrow)`;
+          } else {
+            return `Open until ${formatTime(closeTime)}`;
+          }
+        } else {
+          return getOpeningCountdown(hours) || 'Closed';
+        }
+      }
       const dineInHoursToday = getTodayHours(restaurant.normalized_hours_dine_in);
       const driveThruHoursToday = getTodayHours(restaurant.normalized_hours_drive_thru);
-
-      const dineInStatus = dineInOpen
-        ? `Open Now${dineInHoursToday ? ` (${formatTime(dineInHoursToday[0])} - ${formatTime(dineInHoursToday[1])})` : ''}`
-        : (getOpeningCountdown(dineInHoursToday) || 'Closed');
-
-      const driveThruStatus = driveThruOpen
-        ? `Open Now${driveThruHoursToday ? ` (${formatTime(driveThruHoursToday[0])} - ${formatTime(driveThruHoursToday[1])})` : ''}`
-        : (getOpeningCountdown(driveThruHoursToday) || 'Closed');
-
-      const featureIcons = {
-        has_drive_thru: '🚗 Drive-Thru',
-        has_wifi: '📶 Wi-Fi',
-        has_online_ordering: '💻 Online Ordering',
-        has_catering: '🎉 Catering'
+      const dineInStatus = getHoursDisplay(dineInOpen, dineInHoursToday);
+      const driveThruStatus = getHoursDisplay(driveThruOpen, driveThruHoursToday);
+      const getFirstUrl = (obj, keys) => {
+        for (const k of keys) {
+          const v = obj[k];
+          if (typeof v === 'string' && v.trim()) return v.trim();
+        }
+        return null;
       };
-      console.log(`Rendering popup for ${restaurant.name || restaurant.company}`);
-      const features = Object.entries(featureIcons)
-        .filter(([key]) => restaurant[key])
-        .map(([, label]) => `
-          <div class="info-row">
-            <div class="info-icon">✅</div>
-            <div class="info-text">${label}</div>
-          </div>`)
-        .join('');
-
+      const doorDashUrl = getFirstUrl(restaurant, ['doordash_link', 'doordash', 'door_dash_url', 'dd_url']);
+      const uberEatsUrl = getFirstUrl(restaurant, ['ubereats_link', 'uber_eats_url', 'uber_eats', 'uber_url']);
       return `
-        <div class="modern-popup">
-          <div class="popup-header">
-            <div class="popup-title">${restaurant.company}</div>
-            <div class="popup-subtitle">${restaurant.name || restaurant.company}</div>
-          </div>
-          <div class="popup-body">
-            <div class="popup-info">
-              <div class="info-row">
-                <div class="info-icon address">📍</div>
-                <div class="info-text">
-                  <div class="info-label">Address</div>
-                  <div class="info-value">${restaurant.address}</div>
-                </div>
+        <div class="restaurant-card">
+          <div class="card-header">
+            <div class="header-main">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <h3 class="restaurant-name" style="margin-bottom:0;">${restaurant.company}</h3>
+                ${distanceLabel ? distanceLabel : ''}
               </div>
-              <div class="info-row">
-                <div class="info-icon">🍽️</div>
-                <div class="info-text">
-                  <div class="info-label">Dine-In</div>
-                  <div class="info-value ${dineInOpen ? 'open' : 'closed'}">
-                    ${dineInStatus}
-                  </div>
-                </div>
+              <div class="hours-info">
+                <div class="primary-hours ${dineInOpen ? '' : 'closed'}">${dineInStatus}</div>
+                ${restaurant.has_drive_thru && driveThruHoursToday ? `
+                <div class="drive-thru-hours">Drive-thru: ${driveThruStatus}</div>` : ''}
               </div>
-              ${restaurant.has_drive_thru ? `
-              <div class="info-row">
-                <div class="info-icon">🚗</div>
-                <div class="info-text">
-                  <div class="info-label">Drive-Thru</div>
-                  <div class="info-value ${driveThruOpen ? 'open' : 'closed'}">
-                    ${driveThruStatus}
-                  </div>
-                </div>
-              </div>` : ''}
-              ${features}
             </div>
           </div>
-          <div class="popup-actions">
-            <button class="popup-btn secondary" onclick="getDirections(${restaurant.latitude}, ${restaurant.longitude})">
-              🧭 Directions
-            </button>
+          <div class="card-content">
+            <div class="contact-section">
+              <button class="contact-btn directions-contact" onclick='getDirectionsRobust(${JSON.stringify(restaurant.address || "")}, ${JSON.stringify(restaurant.city || "")}, ${JSON.stringify(restaurant.state || "")}, ${JSON.stringify(restaurant.zip || "")})'>
+                Directions
+              </button>
+              ${phone ? `
+              <a href="tel:${sanitizedTel}" class="contact-btn call-contact">
+                Call
+              </a>` : ''}
+            </div>
+            ${(restaurant.has_wifi || restaurant.has_online_ordering || restaurant.has_catering) ? `
+            <div class="features-section">
+              ${restaurant.has_wifi ? '<span class="feature-tag wifi">🛜 WiFi</span>' : ''}
+              ${restaurant.has_online_ordering ? '<span class="feature-tag online-ordering">💻 Online Ordering</span>' : ''}
+              ${restaurant.has_catering ? '<span class="feature-tag catering">🍽️ Catering</span>' : ''}
+            </div>` : ''}
+            <div class="actions-section">
+              ${doorDashUrl ? `
+              <a href="${doorDashUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn doordash-btn">
+                DoorDash
+              </a>` : ''}
+              ${uberEatsUrl ? `
+              <a href="${uberEatsUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn ubereats-btn">
+                Uber Eats
+              </a>` : ''}
+            </div>
           </div>
         </div>
       `;
@@ -690,6 +776,22 @@
     
     function sanitizeCompanyName(name) {
       return name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '').replace(/&/g, 'and');
+    }
+
+    // Show custom centered popup overlay
+    function showCenteredPopup(restaurant) {
+      const overlay = document.getElementById('centeredPopupOverlay');
+      const inner = document.getElementById('centeredPopupInner');
+      inner.innerHTML = createModernPopup(restaurant);
+      overlay.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+      window.lastRestaurantForPopup = restaurant;
+    }
+
+    function closeCenteredPopup() {
+      const overlay = document.getElementById('centeredPopupOverlay');
+      overlay.style.display = 'none';
+      document.body.style.overflow = '';
     }
 
     // Optimized marker creation with delayed image loading
@@ -771,6 +873,7 @@
       const marker = L.marker([r.latitude, r.longitude], { 
         icon: createCircleIcon(r.company, false)
       });
+      marker._restaurantId = r.id;
       
       if (addToMap) {
         marker.addTo(map);
@@ -790,52 +893,48 @@
         });
       }
 
-      marker.bindPopup(createModernPopup(r), {
-        maxWidth: 260,
-        className: 'modern-popup-container',
-        autoPan: false,
-        offset: [0, 260],
-        closeButton: true,
-        closeOnClick: false,
-        autoClose: false
-      });
+
+      // Remove default popup binding
+      // marker.bindPopup(createModernPopup(r), { ... });
 
       marker.on('click', function (e) {
-        const markerLatLng = e.latlng;
-        const map = e.target._map;
-        
-        map.setView(markerLatLng, map.getZoom(), { animate: true });
-        
-        setTimeout(() => {
-          e.target.openPopup();
-          
-          const popup = e.target.getPopup();
-          const popupElement = popup.getElement();
-          
-          if (popupElement) {
-            const rect = popupElement.getBoundingClientRect();
-            const viewportHeight = window.innerHeight;
-            
-            if (rect.bottom > viewportHeight) {
-              const adjustment = (rect.bottom - viewportHeight + 20) / 1000000;
-              map.panTo([markerLatLng.lat - adjustment, markerLatLng.lng], { animate: true });
-            }
-          }
-        }, 300);
+        // Always regenerate popup content to update distance label
+        let restaurantObj = null;
+        if (marker._restaurantId && restaurantCache.has(marker._restaurantId)) {
+          restaurantObj = restaurantCache.get(marker._restaurantId);
+        }
+        if (!restaurantObj) {
+          restaurantObj = r;
+        }
+        showCenteredPopup(restaurantObj);
       });
 
       return marker;
     }
 
+    // Close centered popup on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeCenteredPopup();
+    });
+
     // Updated renderMarkers with aggressive lazy loading
     function renderMarkers(data) {
-      // Remove all markers from map
-      markerCache.forEach(marker => map.removeLayer(marker));
+      const toShow = new Set(data.map(r => r.id));
 
-      // Add markers for all restaurants in data
-      data.forEach(r => {
-        const marker = markerCache.get(r.id);
-        if (marker) marker.addTo(map);
+      markerCache.forEach((marker, id) => {
+        const shouldShow = toShow.has(id);
+        const isOnMap = map.hasLayer(marker);
+        const popup = marker.getPopup();
+        const isOpen = popup ? popup.isOpen() : false;
+
+        if (shouldShow) {
+          if (!isOnMap) marker.addTo(map);
+        } else {
+          // Hide only if popup isn't open; keep open popups visible
+          if (isOnMap && !isOpen) {
+            map.removeLayer(marker);
+          }
+        }
       });
     }
 
@@ -875,7 +974,7 @@
 
     // Helper function (unchanged)
     function getLogoUrl(company) {
-      return imageCache.get(company) || null;
+      return imageCache.get(company) || `/static/images/logos/${sanitizeCompanyName(company)}`;
     }
 
     // Preload images for visible restaurants
@@ -914,6 +1013,17 @@
             }
           });
 
+          // Sync in-memory list for filters and dropdown
+          allRestaurantData = Array.from(restaurantCache.values());
+          populateCompanyDropdown(allRestaurantData);
+
+          // If the current view returned nothing (or very few) and it's the first load,
+          // populate the dropdown using all companies so it doesn't look empty.
+          const hasCompanies = new Set((allRestaurantData || []).map(r => r.company).filter(Boolean)).size > 0;
+          if (!hasCompanies) {
+            populateCompaniesFromAllData();
+          }
+
           // Preload images for new companies
           const uniqueCompanies = [...new Set(data.map(r => r.company))];
           Promise.all(uniqueCompanies.map(company => preloadAndCacheImage(company)))
@@ -921,41 +1031,19 @@
               console.log(`Preloaded ${uniqueCompanies.length} company logos`);
             });
 
-          // Render all cached markers (optionally filtered)
-          renderMarkers(Array.from(restaurantCache.values()));
+          // Render filtered view based on current filters
+          const filtered = filterData(allRestaurantData);
+          renderMarkers(filtered);
         })
         .catch(error => {
           console.error('Error loading restaurant data:', error);
         });
     }
 
-    // New function to setup map event listeners
-    function setupMapEventListeners() {
-      map.on('moveend', () => {
-        clearTimeout(loadDataTimeout);
-        loadDataTimeout = setTimeout(() => {
-          loadDataForCurrentView();
-        }, 300); // Debounce API calls
-      });
-    }
+    
     function applyFilters() {
+      populateCompanyDropdown(allRestaurantData);
       const filtered = filterData(allRestaurantData);
-      
-      // Update company dropdown with all available companies
-      const select = document.getElementById('companySelect');
-      if (select && allRestaurantData.length > 0) {
-        const currentValue = select.value;
-        const companySet = new Set(allRestaurantData.map(r => r.company));
-        select.innerHTML = '<option value="">All Companies</option>';
-        companySet.forEach(c => {
-          const option = document.createElement('option');
-          option.value = c;
-          option.textContent = c;
-          select.appendChild(option);
-        });
-        select.value = currentValue; // Restore selection
-      }
-      
       renderMarkers(filtered);
     }
 
@@ -970,24 +1058,9 @@
         .then(res => res.json())
         .then(data => {
           restaurantData = data;
-          
-          // Populate company dropdown
-          const select = document.getElementById('companySelect');
-          if (select.options.length <= 1) {
-            const companySet = new Set(data.map(r => r.company));
-            select.innerHTML = '<option value="">All Companies</option>';
-            companySet.forEach(c => {
-              const option = document.createElement('option');
-              option.value = c;
-              option.textContent = c;
-              select.appendChild(option);
-            });
-            
-            // Load saved filters
-            loadFilters();
-          }
-
-          // Apply current filters and render
+          allRestaurantData = data;
+          populateCompanyDropdown(data);
+          loadFilters();
           const filtered = filterData(data);
           renderMarkers(filtered);
         })
@@ -1014,6 +1087,8 @@
             }
           ];
           restaurantData = sampleData;
+          allRestaurantData = sampleData;
+          populateCompanyDropdown(sampleData);
           renderMarkers(sampleData);
           
           // Load city selection AFTER sample data is rendered
@@ -1044,6 +1119,12 @@
     function toggleDarkMode() {
       const isDark = document.body.classList.contains('dark');
       setDarkMode(!isDark);
+      // If a centered popup is open, re-render its content so text colors adapt
+      const overlay = document.getElementById('centeredPopupOverlay');
+      if (overlay && overlay.style.display !== 'none' && window.lastRestaurantForPopup) {
+        const inner = document.getElementById('centeredPopupInner');
+        if (inner) inner.innerHTML = createModernPopup(window.lastRestaurantForPopup);
+      }
     }
     function loadAnalytics() {
       // Google Analytics
@@ -1059,8 +1140,8 @@
         gtag('config', 'G-HHP4EYY597');
       };
     }
-    // Updated DOMContentLoaded to prioritize map loading
-    document.addEventListener('DOMContentLoaded', () => {
+  // Updated DOMContentLoaded to prioritize correct filter defaults before data load
+  document.addEventListener('DOMContentLoaded', () => {
       function getInitialDarkMode() {
         const savedMode = localStorage.getItem('fastMealDarkMode');
         if (savedMode !== null) {
@@ -1073,29 +1154,35 @@
       
       // Load city selection first
       loadCitySelection();
-      
-      // Initialize map IMMEDIATELY - highest priority
+      // Load filters BEFORE map init so Open Now default is applied to first render
+      loadFilters();
+      const openNowEl = document.getElementById('openNow');
+      if (openNowEl && !localStorage.getItem('fastMealFilters')) {
+        openNowEl.checked = true; // enforce default
+      }
+      // Initialize map after filters are ready
       initMap(savedDarkMode);
-      
       // Set dark mode after map is initialized
       setDarkMode(savedDarkMode);
-
-      // Critical UI setup first
+      // Add user location marker slightly after
+      setTimeout(() => { addUserLocationMarker(); }, 50);
+      // Ensure the company dropdown gets populated even if initial viewport has no data
       setTimeout(() => {
-        loadFilters();
-        addUserLocationMarker();
-      }, 50);
+        const select = document.getElementById('companySelect');
+        if (select && select.options.length <= 1) {
+          populateCompaniesFromAllData();
+        }
+      }, 600);
       //test
       // Setup event listeners
       document.getElementById('darkModeToggle').addEventListener('click', toggleDarkMode);
-      document.getElementById('openNow').addEventListener('change', applyFilters);
+  document.getElementById('openNow').addEventListener('change', () => { saveFilters(); applyFilters(); });
       document.getElementById('driveThru').addEventListener('change', applyFilters);
       document.getElementById('open24h').addEventListener('change', applyFilters);
-      document.getElementById('openLate').addEventListener('change', applyFilters);
       document.getElementById('companySelect').addEventListener('change', applyFilters);
       document.getElementById('locationBtn').addEventListener('click', useMyLocation);
       document.getElementById('citySelect').addEventListener('change', handleCityChange);
-      document.getElementById('wifi').addEventListener('change', applyFilters);
+      
       // System dark mode listener
       if (window.matchMedia) {
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
