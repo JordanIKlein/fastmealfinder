@@ -18,7 +18,7 @@ else:
     print("Warning: MAILCHIMP_API_KEY not found in environment variables")
 MAILCHIMP_API_URL = f'https://{MAILCHIMP_DC}.api.mailchimp.com/3.0/lists/{MAILCHIMP_LIST_ID}/members'
 
-app = Flask(__name__, static_folder='static', static_url_path='/static')
+app = Flask(__name__, static_folder='static', static_url_path='/static',template_folder='templates')
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
 db_connection = DatabasePoolConnection()
 
@@ -357,27 +357,43 @@ def disclaimer():
 
 @app.route('/static/images/logos/<path:company_name>')
 def serve_company_logo(company_name):
-    """
-    Securely serve company logo images with long cache headers.
-    Tries .webp first (smallest), then .png, then .jpg. Falls back to default if none found.
-    """
+    print(f"DEBUG: app.root_path = {app.root_path}")
+    print(f"DEBUG: Current working directory = {os.getcwd()}")
+    print(f"DEBUG: __file__ location = {os.path.dirname(os.path.abspath(__file__))}")
     logo_dir = os.path.join(app.root_path, 'static', 'images', 'logos')
+    print(f"DEBUG: Computed logo_dir = {logo_dir}")
+    print(f"DEBUG: logo_dir exists = {os.path.exists(logo_dir)}")
+    
+    # List what's actually in the directory
+    if os.path.exists(logo_dir):
+        files = os.listdir(logo_dir)
+        print(f"DEBUG: Files in logo_dir: {files[:10]}")  # Show first 10 files
+    
     raw_name = company_name.strip().lower().replace(" ", "-").replace("'", "").replace("&", "and")
     sanitized = secure_filename(raw_name)
     name, ext = os.path.splitext(sanitized)
+
+
+
     # Debug: Print Accept header and sanitized name
     accept_header = request.headers.get('Accept', '')
     accepts_webp = 'image/webp' in accept_header
+    
     tried_files = []
+    
     # Always try WebP first if browser supports it, regardless of what exists
     extensions = ['.webp', '.png', '.jpg'] if accepts_webp else ['.png', '.jpg']
+
     # Try each extension in order
     for ext_candidate in extensions:
         filename = f"{name}{ext_candidate}"
         filepath = os.path.join(logo_dir, filename)
         tried_files.append(filename)
+
         if os.path.exists(filepath):
+
             response = make_response(send_from_directory(logo_dir, filename))
+            
             # Set appropriate content type
             if ext == '.webp':
                 response.headers['Content-Type'] = 'image/webp'
@@ -394,11 +410,14 @@ def serve_company_logo(company_name):
 
     # Try default fallback (check WebP default first if supported)
     fallback_extensions = ['.webp', '.png', '.jpg'] if accepts_webp else ['.png', '.jpg']
+    
     for ext in fallback_extensions:
         fallback = f'default{ext}'
         fallback_path = os.path.join(logo_dir, fallback)
+        
         if os.path.exists(fallback_path):
             response = make_response(send_from_directory(logo_dir, fallback))
+            
             # Set appropriate content type for fallback
             if ext == '.webp':
                 response.headers['Content-Type'] = 'image/webp'
@@ -406,8 +425,10 @@ def serve_company_logo(company_name):
                 response.headers['Content-Type'] = 'image/png'
             elif ext == '.jpg':
                 response.headers['Content-Type'] = 'image/jpeg'
+                
             response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
             response.headers['Vary'] = 'Accept'
+            
             return response
     abort(404)
 

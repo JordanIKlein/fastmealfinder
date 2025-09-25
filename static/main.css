@@ -29,17 +29,18 @@
 
 .centered-popup-close {
   position: absolute;
-  top: 8px;
-  right: 12px;
+  top: 4px;
+  right: 4px;
   background: none;
   border: none;
   font-size: 1.7rem;
   color: #888;
   cursor: pointer;
   z-index: 2;
-  padding: 0 4px;
+  padding: 2px 6px;
   line-height: 1;
-  transition: color 0.15s;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
 }
 .centered-popup-close:hover {
   color: #222;
@@ -57,8 +58,9 @@ body.dark .centered-popup-content hr { border-top-color: var(--input-border); }
 
 /* Ensure the restaurant card inside overlay looks like the popup */
 .centered-popup-overlay .restaurant-card {
-  min-width: 280px;
-  max-width: 320px;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
   background: none;
   border-radius: 0;
   box-shadow: none;
@@ -70,7 +72,9 @@ body.dark .centered-popup-content hr { border-top-color: var(--input-border); }
   border-bottom: 1px solid var(--input-border);
 }
 .centered-popup-overlay .card-content {
+  width: 100%;
   padding: 16px;
+  box-sizing: border-box;
 }
 .centered-popup-overlay .contact-section {
   margin-bottom: 16px;
@@ -97,7 +101,6 @@ body.dark .centered-popup-content hr { border-top-color: var(--input-border); }
 .centered-popup-overlay .contact-btn:hover {
   background: var(--btn-bg);
   color: var(--btn-text);
-  transform: translateY(-1px);
 }
 .centered-popup-overlay .features-section {
   margin-bottom: 16px;
@@ -130,19 +133,20 @@ body.dark .centered-popup-content hr { border-top-color: var(--input-border); }
   border-color: #ff9800;
 }
 .centered-popup-overlay .feature-tag:hover {
-  transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 .centered-popup-overlay .actions-section {
   display: flex;
-  gap: 8px;
   flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+  width: 100%;
 }
 .centered-popup-overlay .action-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 14px;
+  padding: 10px 0;
   border: none;
   border-radius: 8px;
   font-size: 13px;
@@ -154,6 +158,9 @@ body.dark .centered-popup-content hr { border-top-color: var(--input-border); }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
 }
 .centered-popup-overlay .delivery-btn {
   color: white;
@@ -164,11 +171,11 @@ body.dark .centered-popup-content hr { border-top-color: var(--input-border); }
   background: #ff3008;
   border-color: #ff3008;
   color: white !important;
+  margin-bottom: 4px;
 }
 .centered-popup-overlay .doordash-btn:hover {
-  background: #e02a07;
-  border-color: #e02a07;
-  transform: translateY(-1px);
+  background: #881701;
+  border-color: #ffffff;
   color: white !important;
 }
 .centered-popup-overlay .ubereats-btn {
@@ -177,9 +184,9 @@ body.dark .centered-popup-content hr { border-top-color: var(--input-border); }
   color: white !important;
 }
 .centered-popup-overlay .ubereats-btn:hover {
-  background: #222;
-  border-color: #222;
-  color: white !important;
+  background: #000000;
+  border-color: #3FC060;
+  color: #3FC060 !important;
 }
 .centered-popup-content {
   background: #fff;
@@ -194,7 +201,7 @@ body.dark .centered-popup-content hr { border-top-color: var(--input-border); }
 .centered-popup-close {
   position: absolute;
   top: 10px;
-  right: 14px;
+  right: 5px;
   background: none;
   border: none;
   font-size: 2rem;
@@ -273,6 +280,7 @@ body.dark {
 
 /* === Global Styles === */
 html, body {
+    overflow: hidden; /* prevent scrolling */
     margin: 0;
     padding: 0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -290,7 +298,7 @@ html, body {
 
 /* === Filter Toggle Button === */
 .filter-toggle {
-    position: absolute;
+    position: fixed;
     top: 10px;
     left: 120px;
     height: 50px;
@@ -313,7 +321,7 @@ html, body {
 
 /* === Dark Mode Toggle Button === */
 .dark-mode-toggle {
-    position: absolute;
+    position: fixed;
     top: 10px;
     left: 215px;
     z-index: 1100;
@@ -464,10 +472,6 @@ html, body {
     cursor: pointer;
     transition: background-color 0.3s ease, transform 0.1s ease;
     text-align: center;
-}
-
-.filter-btn:hover {
-    transform: translateY(-1px);
 }
 
 .filter-btn:active {
@@ -644,7 +648,6 @@ html, body {
     .contact-btn:hover {
       background: var(--btn-bg);
       color: var(--btn-text);
-      transform: translateY(-1px);
     }
 
     .info-section {
@@ -687,7 +690,6 @@ html, body {
     }
 
     .feature-tag:hover {
-      transform: translateY(-1px);
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     }
 
@@ -722,7 +724,6 @@ html, body {
 
     .directions-btn:hover {
       background: var(--btn-hover-bg);
-      transform: translateY(-1px);
     }
 
     .delivery-btn {
@@ -740,7 +741,6 @@ html, body {
     .doordash-btn:hover {
       background: #e02a07;
       border-color: #e02a07;
-      transform: translateY(-1px);
       color: white !important;
     }
 
@@ -756,7 +756,6 @@ html, body {
       background: #1a1a1a;
       color: #00f4c7;
       border-color: #00f4c7;
-      transform: translateY(-1px);
     }
 
     /* Ensure consistent styling in dark mode */
@@ -780,7 +779,7 @@ html, body {
     }
     /* === Use My Location Button === */
     .location-btn {
-    position: absolute;
+    position: fixed;
     top: 10px;
     left: 270px;
     z-index: 1100;
@@ -802,7 +801,7 @@ html, body {
 
     /* === City Dropdown === */
     .city-dropdown {
-    position: absolute;
+    position: fixed;
     top: 10px;
     right: 10px;
     z-index: 1100;
@@ -936,14 +935,14 @@ html, body {
 
     .modal-close {
     position: absolute;
-    top: 15px;
-    right: 15px;
+    top: 5px;
+    right: 5px;
     background: none;
     border: none;
     font-size: 24px;
     color: var(--modal-close, #999);
     cursor: pointer;
-    padding: 5px;
+    padding: 1px;
     border-radius: 50%;
     width: 35px;
     height: 35px;
@@ -1098,7 +1097,7 @@ html, body {
 
     /* Filter toggle stays next to logo (no changes needed) */
     .filter-toggle {
-    position: absolute;
+    position: fixed;
     top: 10px;
     left: 120px;
     height: 50px;
@@ -1118,7 +1117,7 @@ html, body {
 
     /* Move location button to bottom-right, above zoom controls */
     .location-btn {
-    position: absolute;
+    position: fixed;
     left: auto;
     right: 10px;
     bottom: 110px; /* Position above zoom controls */
@@ -1132,7 +1131,7 @@ html, body {
 
     /* City dropdown moves to top-right corner */
     .city-dropdown {
-    position: absolute;
+    position: fixed;
     left: auto;
     right: 10px;
     top: 10px;
@@ -1145,7 +1144,7 @@ html, body {
 
     /* Dark mode toggle moves above legend */
     .dark-mode-toggle {
-    position: absolute;
+    position: fixed;
     left: 10px;
     right: auto;
     top: auto;

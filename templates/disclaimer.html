@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -7,7 +8,7 @@
   <meta name="description" content="Fast Meal Finder helps you quickly locate open restaurants, drive-thrus, and dine-in options near you. Real-time hours and easy filters.">
   <meta name="keywords" content="fast food, restaurant finder, open restaurants, drive-thru, dine-in, food locator, late night food">
   <meta name="author" content="FastMealFinder Team">
-
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
   <!-- Viewport for Mobile -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -26,13 +27,24 @@
   <meta name="twitter:title" content="Fast Meal Finder - Open Restaurants Near You">
   <meta name="twitter:description" content="See which restaurants are open now — including drive-thru and dine-in hours.">
   <meta name="twitter:image" content="https://fastmealfinder.com/static/images/icon.png"> <!-- Same image as above -->
+  <link rel="stylesheet" href="static/disclaimer.css">
 </head>
 <body>
+  <a class="logo" href="/">
+    <img 
+      src="static/images/icon.webp" 
+      srcset="static/images/icon.webp"
+      alt="Fast Meal Finder Logo"
+      loading="lazy"
+      width="300" height="231" 
+    >
+  </a>
+  <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode">☀︎</button>
   <div class="disclaimer-container">
     <h1>Disclaimer and Notice Regarding Use of Company Logos and Trademarks</h1>
     <h3>Informational Purposes Only</h3>
     <p> 
-        The logos, trademarks, and any other proprietary designations (collectively “Trademarks”) displayed on this website are used solely for informational purposes. They serve to help users identify and locate the corresponding restaurants and are not intended to imply any endorsement, sponsorship, or affiliation with those businesses.
+        The logos, trademarks, and any other proprietary designations (collectively "Trademarks") displayed on this website are used solely for informational purposes. They serve to help users identify and locate the corresponding restaurants and are not intended to imply any endorsement, sponsorship, or affiliation with those businesses.
     </p>
     <h3>No Affiliation or Endorsement</h3>
     <p>
@@ -46,9 +58,18 @@
     <p>
         The inclusion of company logos and Trademarks is for the purpose of accurately identifying restaurants for user convenience. This website makes no claim of ownership over any Trademarks and respects all trademark rights as recognized under applicable law.
     </p>
+    
+    <h3>Your Use of Our Content</h3>
+    <p>
+        The restaurant location data, hours information, interactive maps, search functionality, and other content we make available on Fast Meal Finder (the "Service") was created, developed, compiled, prepared, revised, selected, and arranged by us through substantial time, effort, and research. This Service and the restaurant information we provide are proprietary and are protected by these Terms of Service (which constitute a contract between us and you), copyright laws, and other intellectual property laws and treaties. This Service is also protected as a collective work or compilation under U.S. copyright and other laws and treaties. We provide it for your personal, non-commercial use only.
+    </p>
+    <p>
+        You may not use, and may not authorize any third party to use, this Service or any restaurant data, location information, or content we make available in any manner that: (i) serves as a source of or substitute for the Fast Meal Finder service or our compiled restaurant information; (ii) affects our ability to operate and maintain this service; or (iii) competes with the restaurant finding service we provide. These restrictions apply to any robot, spider, scraper, web crawler, or other automated means, or any similar manual process, or any software used to systematically access or extract data from the Service. You further agree not to violate the restrictions in any robot exclusion headers of this Service, if any, or bypass or circumvent other measures employed to prevent or limit automated access to our restaurant data and service functionality.
+    </p>
+
     <h3>No Warranty and Limitation of Liability</h3>
     <p>
-        The information provided on this website is “as is” without any representations or warranties, express or implied. "FastMealFinder.com" makes no guarantees regarding the accuracy, completeness, or usefulness of any information provided. In no event will FastMealFinder be liable for any direct, indirect, incidental, or consequential damages arising out of or related to the use or misuse of these materials.
+        The information provided on this website is "as is" without any representations or warranties, express or implied. "FastMealFinder.com" makes no guarantees regarding the accuracy, completeness, or usefulness of any information provided. In no event will FastMealFinder be liable for any direct, indirect, incidental, or consequential damages arising out of or related to the use or misuse of these materials.
     </p>
     <h3>Changes to This Disclaimer</h3>
     <p>
@@ -61,20 +82,43 @@
     </p>
   </div>
 </body>
-  <style>
-    .disclaimer-container {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      max-width: 800px;
-      margin: auto;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+
+  <script>
+    // --- Dark Mode Support (copied/adapted from index.html) ---
+    function setDarkMode(isDark) {
+      if (isDark) {
+        document.body.classList.add('dark');
+        document.getElementById('darkModeToggle').textContent = '☾';
+      } else {
+        document.body.classList.remove('dark');
+        document.getElementById('darkModeToggle').textContent = '☀︎';
+      }
     }
-    .disclaimer-container h1 {
-      color: red;
+    function getInitialDarkMode() {
+      if (localStorage.getItem('fastMealDarkMode')) {
+        return localStorage.getItem('fastMealDarkMode') === 'true';
+      }
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return true;
+      }
+      return false;
     }
-    .disclaimer-container h3 {
-      color: #333;
-    }
-  </style>
+    document.addEventListener('DOMContentLoaded', function() {
+      const savedDarkMode = getInitialDarkMode();
+      setDarkMode(savedDarkMode);
+      document.getElementById('darkModeToggle').addEventListener('click', function() {
+        const isDark = !document.body.classList.contains('dark');
+        setDarkMode(isDark);
+        localStorage.setItem('fastMealDarkMode', isDark);
+      });
+      // System dark mode listener
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+          if (!localStorage.getItem('fastMealDarkMode')) {
+            setDarkMode(e.matches);
+          }
+        });
+      }
+    });
+  </script>
 </html>

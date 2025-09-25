@@ -1,0 +1,137 @@
+body.dark {
+	--bg-color: #121212;
+	--text-color: #eee;
+	--btn-bg: #375a7f;
+	--btn-hover-bg: #2c3e50;
+	--btn-text: #ddd;
+}
+
+body.dark {
+	background: var(--bg-color, #121212);
+	color: var(--text-color, #eee);
+}
+
+body.dark .disclaimer-container {
+	background: #181a1b;
+	color: var(--text-color, #eee);
+	border-color: #23272f;
+	box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+}
+
+body.dark .disclaimer-container h1 {
+	color: #ff6b6b;
+}
+
+body.dark .disclaimer-container h3 {
+	color: #b0b0b0;
+}
+
+body.dark .disclaimer-container p {
+	color: #e0e0e0;
+}
+/* FastMealFinder Disclaimer Page Styles */
+
+body {
+	background: var(--bg-color, #f7f7f7);
+	color: var(--text-color, #222);
+	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+	margin: 0;
+	padding: 0;
+	min-height: 100vh;
+}
+
+.disclaimer-container {
+	background: #fff;
+	padding: 32px 24px 28px 24px;
+	border-radius: 14px;
+	max-width: 820px;
+	margin: 48px auto 32px auto;
+	box-shadow: 0 6px 24px rgba(0,0,0,0.13);
+	border: 1px solid #e0e0e0;
+}
+
+.disclaimer-container h1 {
+	color: #c62828;
+	font-size: 2.1rem;
+	margin-bottom: 18px;
+	font-weight: 700;
+	letter-spacing: 0.01em;
+}
+
+.disclaimer-container h3 {
+	color: #333;
+	font-size: 1.18rem;
+	margin-top: 28px;
+	margin-bottom: 8px;
+	font-weight: 600;
+}
+
+.disclaimer-container p {
+	color: #222;
+	font-size: 1rem;
+	line-height: 1.7;
+	margin-bottom: 10px;
+}
+
+@media (max-width: 600px) {
+	.disclaimer-container {
+		padding: 16px 4vw 18px 4vw;
+		margin: 18px 0 12px 0;
+		max-width: 98vw;
+	}
+	.disclaimer-container h1 {
+		font-size: 1.3rem;
+	}
+	.disclaimer-container h3 {
+		font-size: 1.05rem;
+	}
+	.disclaimer-container p {
+		font-size: 0.97rem;
+	}
+}
+/* Logo style (copied from index.html, adjusted for disclaimer page) */
+.logo {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    z-index: 1300;
+    width: 100px;
+    height: 80px;
+    background: var(--btn-bg, #007bff);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--btn-bg, #007bff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease;
+}
+.logo img {
+    width: 90px;
+    height: 70px;
+    object-fit: contain;
+}
+.dark-mode-toggle {
+    position: absolute;
+    top: 18px;
+    left: 130px;
+    z-index: 1301;
+    background-color: var(--btn-bg, #007bff);
+    color: var(--btn-text, #fff);
+    border: none;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: background-color 0.3s ease;
+    user-select: none;
+}
+.dark-mode-toggle:hover {
+    background-color: var(--btn-hover-bg, #0056b3);
+}
+@media (max-width: 600px) {
+    .logo { left: 8px; top: 8px; width: 70px; height: 56px; }
+    .logo img { width: 60px; height: 44px; }
+    .dark-mode-toggle { left: 85px; top: 8px; padding: 8px 12px; font-size: 13px; }
+}

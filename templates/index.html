@@ -8,6 +8,7 @@
   <meta name="description" content="Fast Meal Finder helps you quickly locate open restaurants, drive-thrus, and dine-in options near you. Real-time hours and easy filters.">
   <meta name="keywords" content="fast food, restaurant finder, open restaurants, drive-thru, dine-in, food locator, late night food">
   <meta name="author" content="FastMealFinder Team">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
   <!-- Viewport for Mobile -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Robots -->
@@ -30,11 +31,7 @@
     <a class="logo" href="https://www.fastmealfinder.com/">
       <img 
         src="static/images/icon.webp" 
-        srcset="
-          static/images/icon.webp 1x,
-          static/images/icon@2x.webp 2x,
-          static/images/icon@3x.webp 3x
-        "
+        srcset="static/images/icon.webp"
         alt="Fast Meal Finder Logo"
         loading="lazy"
         width="300" height="231" 
@@ -42,10 +39,14 @@
     </a>
     <div id="introModal" class="intro-modal">
       <div class="intro-content">
-          <button id="closeIntroBtn" class="close-btn" aria-label="Close Introduction">&times;</button>
-          <h2>Find Fast, Affordable Food Near You in Boston</h2>
-          <p>
-          Fast Meal Finder is Boston's premier app for discovering fast food restaurants, late-night drive-thrus, and budget-friendly dining options — all in real time. Instantly find what's open now, compare the best deals, and locate your next quick meal with our smart filters for hours, cost, and location. We do not store any geolocation data that is utilize. Geolocation data is only used to provide you a more personalized experience. Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.
+        <button id="closeIntroBtn" class="close-btn" aria-label="Close Introduction">&times;</button>
+        <h2>Hungry Boston? We'll Find What's Open Right Now</h2>
+            <p style="font-family: Arial, sans-serif; line-height: 1.6;">
+            <strong>Never waste time driving to closed restaurants again.</strong>  
+            Fast Meal Finder shows you exactly which spots are serving food this very moment, plus filters for drive-thru, 24-Hour locations, distance, and sorting by chain!  
+            Your location data never leaves your device.  
+            <br><br>
+            Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" style="color: #1a73e8; text-decoration: none;">OpenStreetMap</a> contributors.
           </p>
       </div>
     </div>
@@ -117,7 +118,7 @@
     <!-- Footer -->
     <footer class="footer">
       <div class="footer-content">
-        <span>FastMealFinder © 2025</span>
+  <span>FastMealFinder © 2025</span>
         <div class="social-icons">
           <a href="https://www.instagram.com/fastmealfinder/" target="_blank" aria-label="Instagram" class="social-icon">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -144,6 +145,7 @@
               <polyline points="22,6 12,13 2,6"/>
             </svg>
           </button>
+          <a href="{{ url_for('disclaimer') }}" class="footer-link" style="align-self:center; margin-left:18px; font-size:14px; text-decoration:underline; color:inherit; line-height:1.2; display:inline-flex; align-items:center; height:36px;">Disclaimer and Privacy</a>
         </div>
       </div>
     </footer>
@@ -1028,7 +1030,7 @@
           const uniqueCompanies = [...new Set(data.map(r => r.company))];
           Promise.all(uniqueCompanies.map(company => preloadAndCacheImage(company)))
             .then(() => {
-              console.log(`Preloaded ${uniqueCompanies.length} company logos`);
+              //console.log(`Preloaded ${uniqueCompanies.length} company logos`);
             });
 
           // Render filtered view based on current filters
