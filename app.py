@@ -214,6 +214,11 @@ def is_open_late(hours_dict):
 def index():
     return render_template('index.html') #, google_analytics_id=os.getenv('GOOGLE_ANALYTICS_ID')
 
+@app.route('/list')
+def list_view():
+    """List-based restaurant view."""
+    return render_template('listview.html')
+
 @app.route("/api/subscribe", methods=["POST"])
 def subscribe():
     data = request.json

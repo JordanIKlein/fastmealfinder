@@ -25,6 +25,17 @@
   <meta name="twitter:description" content="See which restaurants are open now — including drive-thru and dine-in hours.">
   <meta name="twitter:image" content="https://fastmealfinder.com/static/images/icon.png"> <!-- Same image as above -->
   <link rel="stylesheet" href="static/main.css">
+  <style>
+    .hamburger{position:fixed;top:10px;right:10px;z-index:1500;background:var(--btn-bg);color:var(--btn-text);border:none;border-radius:8px;padding:12px 16px;font-size:18px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px var(--filter-shadow);transition:background .25s,transform .15s;}
+    .hamburger:hover{background:var(--btn-hover-bg);} .hamburger:active{transform:scale(.92);} 
+    .hamburger-menu{position:fixed;top:60px;right:10px;z-index:1510;background:var(--filter-bg);border:1px solid var(--input-border);border-radius:12px;padding:8px 0;min-width:170px;box-shadow:0 10px 34px rgba(0,0,0,.35);opacity:0;transform:scale(.94);transform-origin:top right;pointer-events:none;transition:opacity .18s ease,transform .18s ease;} 
+    .hamburger-menu.open{opacity:1;transform:scale(1);pointer-events:auto;} 
+    .hamburger-menu a{display:block;padding:10px 20px;font-weight:600;font-size:14px;white-space:nowrap;text-decoration:none;color:var(--text-color);transition:background .2s,color .2s;} 
+    .hamburger-menu a:hover{background:var(--btn-hover-bg);color:var(--btn-text);} 
+    .filter-toggle{z-index:1500;} 
+    .filter-toggle .filter-badge{position:absolute;top:4px;right:4px;width:14px;height:14px;border-radius:50%;background:#dc3545;color:#fff;font-size:10px;display:none;align-items:center;justify-content:center;font-weight:700;box-shadow:0 0 0 2px var(--btn-bg);} 
+    .filter-toggle.has-active .filter-badge{display:flex;} body.dark .filter-toggle .filter-badge{background:#ff6b6b;} 
+  </style>
 </head>
 
 <body>
@@ -50,9 +61,11 @@
           </p>
       </div>
     </div>
-    <button class="filter-toggle" onclick="toggleFilters()">Filters</button>
+  <button class="filter-toggle" onclick="toggleFilters()">Filters<span class="filter-badge" id="filterBadge"></span></button>
     <button class="dark-mode-toggle" id="darkModeToggle">☀︎</button>
     <button class="location-btn" id="locationBtn">📍</button>
+    <button class="hamburger" id="hamburgerBtn" aria-label="Menu">☰</button>
+    <!-- City dropdown commented out per request, logic retained in JS
     <select class="city-dropdown" id="citySelect">
       <option value="">Select City</option>
       <option value="42.3601,-71.0589">Boston</option>
@@ -71,6 +84,13 @@
       <option value="42.366133,-71.184950">Watertown</option>
       <option value="42.298647,-71.061524">Dorchester</option>
     </select>
+    -->
+    <div class="hamburger-menu" id="hamburgerMenu">
+      <a href="/">Map</a>
+      <a href="/list">List</a>
+      <a href="/deals">Deals</a>
+      <a href="/menu">Menu</a>
+    </div>
     <div class="filter-panel" id="filterPanel">
       <h3>Filter Restaurants</h3>
       
@@ -797,83 +817,81 @@
     }
 
     // Optimized marker creation with delayed image loading
+    // Move createCircleIcon to top-level so it's accessible everywhere
+    function createCircleIcon(company, loaded = false, isOpen = true) {
+      const size = 32;
+      const radius = 14;
+      const baseColor = isOpen ? '#28a745' : '#dc3545';
+      const opacity = isOpen ? 1 : 0.7;
+      if (loaded && imageCache.has(company)) {
+        // Show image with smooth transition
+        const logoUrl = imageCache.get(company);
+        return L.divIcon({
+          className: 'custom-logo-icon',
+          html: `
+            <div class="logo-marker-container" style="
+              width: ${size}px; height: ${size}px; position: relative;
+              transition: all 0.3s ease;
+            ">
+              <div class="logo-marker" style="
+                width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
+                background-color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+                display: flex; align-items: center; justify-content: center;
+                border: 3px solid ${baseColor}; opacity: ${opacity};
+                position: relative; transition: all 0.3s ease;
+              ">
+                <img src="${logoUrl}" alt="${company}" style="
+                  width: 100%; height: 100%; object-fit: contain;
+                  ${!isOpen ? 'filter: grayscale(30%);' : ''}
+                  transition: opacity 0.3s ease;
+                " loading="lazy">
+                <div class="status-indicator" style="
+                  position: absolute; top: -3px; right: -3px; width: 10px; height: 10px;
+                  background: ${baseColor}; border: 2px solid white;
+                  border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                  ${isOpen ? 'animation: pulse-dot 2s infinite;' : ''}
+                "></div>
+              </div>
+            </div>
+          `,
+          iconSize: [size, size],
+          iconAnchor: [size/2, size/2]
+        });
+      } else {
+        // Show colored circle with company initial
+        const initial = company.charAt(0).toUpperCase();
+        return L.divIcon({
+          className: 'custom-logo-icon',
+          html: `
+            <div class="logo-marker-container" style="
+              width: ${size}px; height: ${size}px; position: relative;
+              transition: all 0.3s ease;
+            ">
+              <div class="circle-marker" style="
+                width: 100%; height: 100%; border-radius: 50%;
+                background: ${baseColor}; opacity: ${opacity};
+                display: flex; align-items: center; justify-content: center;
+                color: white; font-weight: bold; font-size: 14px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+                border: 2px solid white;
+                transition: all 0.3s ease;
+                ${isOpen ? 'animation: pulse-circle 2s infinite;' : ''}
+              ">
+                ${initial}
+              </div>
+            </div>
+          `,
+          iconSize: [size, size],
+          iconAnchor: [size/2, size/2]
+        });
+      }
+    }
+
     function createMarker(r, addToMap = true) {
       const isOpen = r.open_now_dine_in || r.open_now_drive_thru;
-      const baseColor = isOpen ? '#28a745' : '#dc3545'; // Green for open, red for closed
-      const opacity = isOpen ? 1 : 0.7;
-      
-      // Create a simple colored circle marker first
-      const createCircleIcon = (company, loaded = false) => {
-        const size = 32;
-        const radius = 14;
-        
-        if (loaded && imageCache.has(company)) {
-          // Show image with smooth transition
-          const logoUrl = imageCache.get(company);
-          return L.divIcon({
-            className: 'custom-logo-icon',
-            html: `
-              <div class="logo-marker-container" style="
-                width: ${size}px; height: ${size}px; position: relative;
-                transition: all 0.3s ease;
-              ">
-                <div class="logo-marker" style="
-                  width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
-                  background-color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-                  display: flex; align-items: center; justify-content: center;
-                  border: 3px solid ${baseColor}; opacity: ${opacity};
-                  position: relative; transition: all 0.3s ease;
-                ">
-                  <img src="${logoUrl}" alt="${company}" style="
-                    width: 100%; height: 100%; object-fit: contain;
-                    ${!isOpen ? 'filter: grayscale(30%);' : ''}
-                    transition: opacity 0.3s ease;
-                  " loading="lazy">
-                  <div class="status-indicator" style="
-                    position: absolute; top: -3px; right: -3px; width: 10px; height: 10px;
-                    background: ${baseColor}; border: 2px solid white;
-                    border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-                    ${isOpen ? 'animation: pulse-dot 2s infinite;' : ''}
-                  "></div>
-                </div>
-              </div>
-            `,
-            iconSize: [size, size],
-            iconAnchor: [size/2, size/2]
-          });
-        } else {
-          // Show colored circle with company initial
-          const initial = company.charAt(0).toUpperCase();
-          return L.divIcon({
-            className: 'custom-logo-icon',
-            html: `
-              <div class="logo-marker-container" style="
-                width: ${size}px; height: ${size}px; position: relative;
-                transition: all 0.3s ease;
-              ">
-                <div class="circle-marker" style="
-                  width: 100%; height: 100%; border-radius: 50%;
-                  background: ${baseColor}; opacity: ${opacity};
-                  display: flex; align-items: center; justify-content: center;
-                  color: white; font-weight: bold; font-size: 14px;
-                  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-                  border: 2px solid white;
-                  transition: all 0.3s ease;
-                  ${isOpen ? 'animation: pulse-circle 2s infinite;' : ''}
-                ">
-                  ${initial}
-                </div>
-              </div>
-            `,
-            iconSize: [size, size],
-            iconAnchor: [size/2, size/2]
-          });
-        }
-      };
-
       // Create marker with initial circle icon
       const marker = L.marker([r.latitude, r.longitude], { 
-        icon: createCircleIcon(r.company, false)
+        icon: createCircleIcon(r.company, false, isOpen)
       });
       marker._restaurantId = r.id;
       
@@ -884,17 +902,16 @@
       // Upgrade to image when available (with smooth transition)
       if (imageCache.has(r.company)) {
         // Image already loaded, upgrade immediately
-        marker.setIcon(createCircleIcon(r.company, true));
+        marker.setIcon(createCircleIcon(r.company, true, isOpen));
       } else {
         // Load image in background and upgrade when ready
         preloadAndCacheImage(r.company).then(() => {
           // Only upgrade if marker is still on map
           if (map.hasLayer(marker)) {
-            marker.setIcon(createCircleIcon(r.company, true));
+            marker.setIcon(createCircleIcon(r.company, true, isOpen));
           }
         });
       }
-
 
       // Remove default popup binding
       // marker.bindPopup(createModernPopup(r), { ... });
@@ -930,7 +947,15 @@
         const isOpen = popup ? popup.isOpen() : false;
 
         if (shouldShow) {
-          if (!isOnMap) marker.addTo(map);
+          if (!isOnMap) {
+            marker.addTo(map);
+            // Upgrade icon if logo is now available
+            const r = restaurantCache.get(id);
+            if (r && imageCache.has(r.company)) {
+              const open = r.open_now_dine_in || r.open_now_drive_thru;
+              marker.setIcon(createCircleIcon(r.company, true, open));
+            }
+          }
         } else {
           // Hide only if popup isn't open; keep open popups visible
           if (isOnMap && !isOpen) {
@@ -1178,12 +1203,24 @@
       //test
       // Setup event listeners
       document.getElementById('darkModeToggle').addEventListener('click', toggleDarkMode);
-  document.getElementById('openNow').addEventListener('change', () => { saveFilters(); applyFilters(); });
-      document.getElementById('driveThru').addEventListener('change', applyFilters);
-      document.getElementById('open24h').addEventListener('change', applyFilters);
-      document.getElementById('companySelect').addEventListener('change', applyFilters);
+  function updateFilterBadge(){
+    const btn=document.querySelector('.filter-toggle'); if(!btn) return;
+    const hasActive = (!document.getElementById('openNow').checked) || document.getElementById('driveThru').checked || document.getElementById('open24h').checked || document.getElementById('companySelect').value;
+    if(hasActive){ btn.classList.add('has-active'); } else { btn.classList.remove('has-active'); }
+  }
+  document.getElementById('openNow').addEventListener('change', () => { saveFilters(); applyFilters(); updateFilterBadge(); if(window.innerWidth<=640){ closeFilters(); } });
+      document.getElementById('driveThru').addEventListener('change', ()=>{ applyFilters(); updateFilterBadge(); if(window.innerWidth<=640){ closeFilters(); } });
+      document.getElementById('open24h').addEventListener('change', ()=>{ applyFilters(); updateFilterBadge(); if(window.innerWidth<=640){ closeFilters(); } });
+      document.getElementById('companySelect').addEventListener('change', ()=>{ applyFilters(); updateFilterBadge(); if(window.innerWidth<=640){ closeFilters(); } });
       document.getElementById('locationBtn').addEventListener('click', useMyLocation);
-      document.getElementById('citySelect').addEventListener('change', handleCityChange);
+  const citySelectEl = document.getElementById('citySelect');
+  if (citySelectEl) { citySelectEl.addEventListener('change', handleCityChange); }
+  const hamburgerBtn = document.getElementById('hamburgerBtn');
+  const hamburgerMenu = document.getElementById('hamburgerMenu');
+  hamburgerBtn.addEventListener('click', (e)=>{ e.stopPropagation(); hamburgerMenu.classList.toggle('open'); });
+  document.addEventListener('click', (e)=>{ if(!hamburgerMenu.contains(e.target) && e.target!==hamburgerBtn){ hamburgerMenu.classList.remove('open'); }});
+  updateFilterBadge();
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeFilters(); hamburgerMenu.classList.remove('open'); } });
       
       // System dark mode listener
       if (window.matchMedia) {

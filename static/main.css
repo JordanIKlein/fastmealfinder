@@ -360,6 +360,23 @@ html, body {
     flex-direction: column;
 }
 
+/* Mobile refinement: keep actions accessible & reduce excessive scroll */
+@media (max-width: 640px) {
+  .filter-panel {
+    top: 70px;
+    height: auto;
+    max-height: calc(100% - 140px);
+    left: -340px; /* preserve hidden state */
+    padding: 18px 20px 12px;
+    gap: 14px;
+  }
+  .filter-panel.open { left: 0; }
+  .filter-panel h3 { font-size: 1.35rem; margin-bottom: 16px; }
+  .filter-group { margin-bottom: 18px; }
+  .filter-actions { position: sticky; bottom: 0; padding-top: 10px; background: linear-gradient(var(--filter-bg) 60%, var(--filter-bg)); margin-top: auto; box-shadow: 0 -4px 12px rgba(0,0,0,0.08); }
+  .filter-btn { padding: 11px 18px; font-size: 0.95rem; }
+}
+
 .filter-panel.open {
     left: 0;
 }

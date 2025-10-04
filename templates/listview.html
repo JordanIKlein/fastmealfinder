@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fast Meal Finder – Restaurant List</title>
+  <meta name="description" content="Browse a list of open restaurants, drive-thrus, and 24-hour locations near you.">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+  <link rel="stylesheet" href="static/main.css">
+  <style>
+    /* List view specific layout */
+    body, html { overflow: hidden; }
+    .list-wrapper { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; }
+  .list-container { overflow-y:auto; padding:88px 18px 140px 18px; background: var(--bg-color); display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:18px; }
+    .restaurant-card.list { min-width:unset; max-width:100%; border:1px solid var(--input-border); border-radius:12px; background: var(--bg-color); box-shadow:0 4px 16px rgba(0,0,0,0.12); display:flex; flex-direction:column; transition: box-shadow .25s, transform .2s; }
+    .restaurant-card.list:hover { box-shadow:0 6px 22px rgba(0,0,0,0.18); transform:translateY(-2px); }
+    .badge-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .distance-pill { background:#f3f3f3; color:#444; font-size:12px; font-weight:600; padding:4px 8px; border-radius:14px; letter-spacing:.02em; }
+    body.dark .distance-pill { background:#23272f; color:#e0e0e0; }
+    .filters-inline-btn { background:var(--btn-bg); color:var(--btn-text); border:none; padding:10px 14px; border-radius:8px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px var(--filter-shadow); }
+    .filters-inline-btn:hover { background:var(--btn-hover-bg); }
+    .empty-state { grid-column: 1/-1; text-align:center; padding:60px 20px; font-size:18px; font-weight:600; opacity:.7; }
+    .footer { position:fixed; }
+    .logo { position:relative; top:0; left:0; box-shadow:0 4px 12px var(--btn-bg); }
+    .logo img { width:90px; height:70px; }
+    .legend-note { font-size:12px; opacity:.65; margin-top:6px; }
+    .inline-checkboxes { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+    .inline-checkboxes label { display:flex; gap:6px; align-items:center; font-size:13px; font-weight:600; cursor:pointer; }
+    .inline-checkboxes input { width:16px; height:16px; cursor:pointer; accent-color:var(--btn-bg); }
+  @media (max-width: 860px) { .list-container { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) { .list-container { padding:100px 14px 160px 14px; } }
+  /* Hamburger + animated dropdown (list view override) */
+  .hamburger { position:fixed; top:10px; right:20px; z-index:1500; background:var(--btn-bg); color:var(--btn-text); border:none; border-radius:8px; padding:12px 16px; font-size:18px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px var(--filter-shadow); transition:background .25s, transform .15s; }
+  .hamburger:hover { background:var(--btn-hover-bg); }
+  .hamburger:active { transform:scale(.92); }
+  .hamburger-menu { position:fixed; top:60px; right:10px; z-index:1510; background:var(--filter-bg); border:1px solid var(--input-border); border-radius:12px; padding:8px 0; min-width:170px; box-shadow:0 10px 34px rgba(0,0,0,.35); opacity:0; transform:scale(.94); transform-origin:top right; pointer-events:none; transition:opacity .18s ease, transform .18s ease; }
+  .hamburger-menu.open { opacity:1; transform:scale(1); pointer-events:auto; }
+  .hamburger-menu a { display:block; padding:10px 20px; font-weight:600; font-size:14px; white-space:nowrap; text-decoration:none; color:var(--text-color); transition:background .2s,color .2s; }
+  .hamburger-menu a:hover { background:var(--btn-hover-bg); color:var(--btn-text); }
+  /* Filter button badge indicator */
+  .filter-toggle { position:fixed; top:10px; left:120px; z-index:1500; }
+  .filter-toggle .filter-badge { position:absolute; top:4px; right:4px; width:14px; height:14px; border-radius:50%; background:#dc3545; color:#fff; font-size:10px; display:none; align-items:center; justify-content:center; font-weight:700; box-shadow:0 0 0 2px var(--btn-bg); }
+  .filter-toggle.has-active .filter-badge { display:flex; }
+  body.dark .filter-toggle .filter-badge { background:#ff6b6b; }
+  /* Remove scroll from filter panel in list view */
+  .filter-panel { overflow:hidden !important; height:auto; max-height:none; top:75px; }
+  @media (max-width:640px){ .filter-panel { top:70px; } }
+  </style>
+</head>
+<body>
+  <button class="hamburger" id="hamburgerBtn" aria-label="Menu">☰</button>
+  <div class="hamburger-menu" id="hamburgerMenu">
+    <a href="/">Map</a>
+    <a href="/list">List</a>
+    <a href="/deals">Deals</a>
+    <a href="/menu" style="border-top:1px solid var(--input-border);margin-top:4px;">Menu</a>
+  </div>
+  <a class="logo" href="/" style="position:absolute;top:6px;left:10px;z-index:110;">
+    <img src="static/images/icon.webp" alt="Fast Meal Finder Logo" loading="lazy" width="300" height="231">
+  </a>
+  <button class="filter-toggle" onclick="toggleFilters()">Filters<span class="filter-badge" id="filterBadge"></span></button>
+  <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode" style="z-index:120;">☀︎</button>
+  <button id="locationBtn" class="location-btn" title="Use my location" style="z-index:120;">📍</button>
+  <div class="filter-panel" id="filterPanel">
+    <h3>Browse Options</h3>
+    <div class="filter-group">
+      <label for="sortSelect">Sort</label>
+      <select id="sortSelect">
+        <option value="relevance">Relevance</option>
+        <option value="distance" disabled>Distance</option>
+        <option value="name">Name (A–Z)</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Filters</label>
+      <div class="checkbox-group">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px;"><input type="checkbox" id="openNow" checked> Open Now</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px;"><input type="checkbox" id="driveThru"> Drive-Thru</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px;"><input type="checkbox" id="open24h"> 24-Hour</label>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label for="companySelect">Restaurants</label>
+      <select id="companySelect">
+        <option value="">All Restaurants</option>
+      </select>
+    </div>
+    <!-- Apply/Back removed: filters auto-apply -->
+  </div>
+  <div id="listContainer" class="list-container" aria-live="polite" style="position:absolute;top:0;left:0;right:0;bottom:0;"></div>
+
+  <footer class="footer">
+    <div class="footer-content">
+      <span>FastMealFinder © 2025</span>
+      <div class="social-icons">
+        <a href="https://www.instagram.com/fastmealfinder/" target="_blank" aria-label="Instagram" class="social-icon">IG</a>
+        <a href="https://x.com/fastmealfinder" target="_blank" aria-label="Twitter" class="social-icon">X</a>
+        <a href="https://discord.gg/w4XtgbkqPX" target="_blank" aria-label="Discord" class="social-icon">DC</a>
+        <a href="{{ url_for('disclaimer') }}" class="footer-link" style="align-self:center; margin-left:18px; font-size:14px; text-decoration:underline; color:inherit; line-height:1.2; display:inline-flex; align-items:center; height:36px;">Disclaimer and Privacy</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // --- State ---
+    let allRestaurantData = [];
+  let filteredData = [];
+  let renderBatchSize = 40; // number of cards per incremental render
+  let lastRenderIndex = 0;  // how many have been rendered so far
+  let isRendering = false;  // guard
+    let imageCache = new Map();
+    let userPosition = null;
+
+    function sanitizeCompanyName(name) {
+      return (name || '').toLowerCase().replace(/\s+/g,'-').replace(/'/g,'').replace(/&/g,'and');
+    }
+
+    function preloadAndCacheImage(company) {
+      const sanitized = sanitizeCompanyName(company);
+      const logoUrl = `/static/images/logos/${sanitized}.webp`;
+      if (imageCache.has(company)) { return Promise.resolve(imageCache.get(company)); }
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => { imageCache.set(company, logoUrl); resolve(logoUrl); };
+        img.onerror = () => { resolve(null); };
+        img.src = logoUrl;
+      });
+    }
+
+    // Distance (meters) using haversine
+    function computeDistanceMiles(lat1, lon1, lat2, lon2) {
+      const R = 6371e3; // m
+      const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+      const Δφ = (lat2-lat1)*Math.PI/180; const Δλ = (lon2-lon1)*Math.PI/180;
+      const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+      const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return (R*c)/1609.344; // miles
+    }
+
+    function getTodayHours(hoursMap) {
+      if (!hoursMap) return null; const now = new Date();
+      const key = now.toLocaleDateString('en-US',{weekday:'long'}).toLowerCase();
+      return hoursMap[key] || null;
+    }
+    function formatTime(t) { if(!t) return ''; const [h,m] = t.split(':').map(Number); const d=new Date(); d.setHours(h,m); return d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
+    function getOpeningCountdown(hours) {
+      if (!hours || hours.length<2) return null; const now=new Date();
+      const [start] = hours; const [sh, sm] = start.split(':').map(Number); const open=new Date(); open.setHours(sh,sm,0,0);
+      if (open>now) { const diffMins = Math.round((open-now)/60000); if (diffMins<60) return `Opens in ${diffMins} min`; const h=Math.floor(diffMins/60); const m=diffMins%60; return `Opens in ${h}h${m?` ${m}m`:''}`; }
+      return null;
+    }
+    function getHoursDisplay(isOpen, hours) {
+      const now=new Date(); if (!hours || hours.length<2) return isOpen? 'Open now':'Closed';
+      const [openTime, closeTime] = hours; if (openTime==='00:00' && closeTime==='23:59') return isOpen? 'Open 24h':'Closed';
+      if (isOpen) {
+        if (closeTime < openTime) { return `Open until ${formatTime(closeTime)}`; } else { return `Open until ${formatTime(closeTime)}`; }
+      } else {
+        return getOpeningCountdown(hours) || 'Closed';
+      }
+    }
+
+    function createRestaurantCard(r) {
+      const dineInOpen = r.open_now_dine_in; const driveThruOpen = r.open_now_drive_thru;
+      const dineInHoursToday = getTodayHours(r.normalized_hours_dine_in);
+      const driveThruHoursToday = getTodayHours(r.normalized_hours_drive_thru);
+      const dineInStatus = getHoursDisplay(dineInOpen, dineInHoursToday);
+      const driveThruStatus = getHoursDisplay(driveThruOpen, driveThruHoursToday);
+      const doorDashUrl = r.doordash_link; const uberEatsUrl = r.ubereats_link;
+      let distanceHtml = '';
+      if (userPosition) {
+        const miles = computeDistanceMiles(userPosition.lat, userPosition.lng, r.latitude, r.longitude);
+        distanceHtml = `<span class="distance-pill">~${miles.toFixed(1)} mi</span>`;
+      }
+      const logoLoaded = imageCache.has(r.company);
+      const logoUrl = imageCache.get(r.company);
+      const initial = (r.company||'?').charAt(0).toUpperCase();
+      const statusColor = (dineInOpen||driveThruOpen)? '#28a745':'#dc3545';
+      const markerCircle = `
+        <div style="width:52px;height:52px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.18);border:4px solid ${statusColor};overflow:hidden;">
+          ${logoLoaded && logoUrl ? `<img src="${logoUrl}" alt="${r.company}" style="width:100%;height:100%;object-fit:contain;${(dineInOpen||driveThruOpen)?'':'filter:grayscale(35%);opacity:.8;'}">` : `<span style=\"color:#fff;background:${statusColor};width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;\">${initial}</span>`}
+        </div>`;
+
+      return `
+        <div class="restaurant-card list" data-id="${r.id}">
+          <div class="card-header" style="display:flex; gap:14px; align-items:flex-start; border-bottom:1px solid var(--input-border);">
+            ${markerCircle}
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                <h3 class="restaurant-name" style="margin:0;font-size:18px;">${r.company}</h3>
+                ${distanceHtml}
+              </div>
+              <div class="hours-info" style="display:flex;flex-direction:column;gap:2px;">
+                <div class="primary-hours ${dineInOpen? '' : 'closed'}" style="font-size:13px;">${dineInStatus}</div>
+                ${r.has_drive_thru && driveThruHoursToday ? `<div class="drive-thru-hours" style="font-size:11px;opacity:.75;">Drive-thru: ${driveThruStatus}</div>`:''}
+              </div>
+            </div>
+          </div>
+          <div class="card-content" style="padding:14px 16px;">
+            <div style="font-size:13px; font-weight:500; opacity:.85; line-height:1.4;">
+              ${[r.address, r.city, r.state, r.zip].filter(Boolean).join(', ')}
+            </div>
+            <div class="badge-row">
+              ${r.has_wifi?'<span class="feature-tag wifi" style="font-size:11px;">🛜 WiFi</span>':''}
+              ${r.has_online_ordering?'<span class="feature-tag online-ordering" style="font-size:11px;">💻 Online</span>':''}
+              ${r.has_catering?'<span class="feature-tag catering" style="font-size:11px;">🍽️ Catering</span>':''}
+              ${r.has_drive_thru?'<span class="feature-tag" style="font-size:11px;border-color:#007bff;color:#007bff;background:rgba(0,123,255,0.08);">🚗 Drive-Thru</span>':''}
+            </div>
+            <div class="actions-section" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
+              <button class="contact-btn" style="border:2px solid var(--btn-bg);color:var(--btn-bg);" onclick='openDirections(${JSON.stringify(r.address||'')},${JSON.stringify(r.city||'')},${JSON.stringify(r.state||'')},${JSON.stringify(r.zip||'')})'>Directions</button>
+              ${r.phone_number?`<a href="tel:${String(r.phone_number).replace(/[^+0-9]/g,'')}" class="contact-btn" style="border:2px solid var(--btn-bg);color:var(--btn-bg);text-align:center;">Call</a>`:''}
+              ${doorDashUrl?`<a href="${doorDashUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn doordash-btn" style="text-align:center;">DoorDash</a>`:''}
+              ${uberEatsUrl?`<a href="${uberEatsUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn ubereats-btn" style="text-align:center;">Uber Eats</a>`:''}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function openDirections(address, city, state, zip) {
+      const parts=[address,city,state,zip].filter(v=>v&&String(v).trim()!=='');
+      if(!parts.length){ alert('Address not available for this location'); return; }
+      const url=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(parts.join(', '))}`;
+      window.open(url,'_blank');
+    }
+
+    function populateCompanyDropdown(data) {
+      const select=document.getElementById('companySelect');
+      if(!select) return;
+      const prev=select.value;
+      const companies=[...new Set(data.map(r=>r.company).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+      select.innerHTML='<option value="">All Restaurants</option>' + companies.map(c=>`<option value="${c}">${c}</option>`).join('');
+      if(prev && companies.includes(prev)) select.value=prev;
+    }
+
+    function getFilters() {
+      return {
+        openNow: document.getElementById('openNow').checked,
+        driveThru: document.getElementById('driveThru').checked,
+        open24h: document.getElementById('open24h').checked,
+        company: document.getElementById('companySelect').value
+      };
+    }
+    function saveFilters() { try { localStorage.setItem('fastMealListFilters', JSON.stringify(getFilters())); } catch(e){} }
+    function loadFilters() {
+      try { const saved=localStorage.getItem('fastMealListFilters'); if(!saved) { document.getElementById('openNow').checked = true; return; } const f=JSON.parse(saved);
+        document.getElementById('openNow').checked = f.openNow !== undefined ? !!f.openNow : true;
+        document.getElementById('driveThru').checked=!!f.driveThru;
+        document.getElementById('open24h').checked=!!f.open24h;
+        setTimeout(()=>{ // after options loaded
+          if(f.company) document.getElementById('companySelect').value=f.company;
+          applyFilters();
+        },50);
+      } catch(e){ document.getElementById('openNow').checked = true; }
+    }
+
+    // Filter badge indicator
+    function updateFilterBadge(){
+      const btn=document.querySelector('.filter-toggle'); if(!btn) return;
+      const hasActive = (!document.getElementById('openNow').checked) || document.getElementById('driveThru').checked || document.getElementById('open24h').checked || document.getElementById('companySelect').value;
+      if(hasActive){ btn.classList.add('has-active'); } else { btn.classList.remove('has-active'); }
+    }
+
+    function applyFilters() {
+      const {openNow, driveThru, open24h, company} = getFilters();
+      filteredData = allRestaurantData.filter(r => {
+        if (company && r.company !== company) return false;
+        if (driveThru && !r.has_drive_thru) return false;
+        if (openNow && !(r.open_now_dine_in || r.open_now_drive_thru)) return false;
+        if (open24h && !(r.is_24h_dine_in || r.is_24h_drive_thru)) return false;
+        return true;
+      });
+      sortData();
+      resetInfiniteScroll();
+      renderList();
+      saveFilters();
+      updateFilterBadge();
+    }
+
+    function sortData() {
+      const sortVal = document.getElementById('sortSelect').value;
+      try { localStorage.setItem('fastMealListSort', sortVal); } catch(e){}
+      if (sortVal === 'relevance') {
+        // Keep current order (API order) but we might bring open ones slightly up
+        // Optional: stable partition by open status
+        filteredData = filteredData.slice().sort((a,b)=>{
+          const aOpen = (a.open_now_dine_in||a.open_now_drive_thru)?1:0;
+          const bOpen = (b.open_now_dine_in||b.open_now_drive_thru)?1:0;
+          if (aOpen!==bOpen) return bOpen - aOpen; // open first
+          return 0; // preserve relative order otherwise
+        });
+        return;
+      }
+      if (sortVal === 'name') {
+        filteredData.sort((a,b)=> (a.company||'').localeCompare(b.company||''));
+        return;
+      }
+      if (sortVal === 'distance' && userPosition) {
+        filteredData.sort((a,b)=> {
+          const da = computeDistanceMiles(userPosition.lat, userPosition.lng, a.latitude, a.longitude);
+          const db = computeDistanceMiles(userPosition.lat, userPosition.lng, b.latitude, b.longitude);
+          return da - db;
+        });
+        return;
+      }
+      // If distance selected but we don't yet have geolocation, we'll defer; once geolocation arrives we'll re-sort.
+    }
+
+    function resetInfiniteScroll() {
+      lastRenderIndex = 0;
+      const container=document.getElementById('listContainer');
+      container.innerHTML='';
+    }
+
+    function toggleFilters(){
+      const p=document.getElementById('filterPanel');
+      p.classList.toggle('open');
+    }
+    function closeFilters(){
+      document.getElementById('filterPanel').classList.remove('open');
+    }
+    function applyFiltersAndClose(){ /* legacy noop for compatibility */ }
+
+    function renderNextBatch() {
+      if (isRendering) return; // guard
+      const container=document.getElementById('listContainer');
+      if(!filteredData.length) { container.innerHTML = '<div class="empty-state">No restaurants match your filters.</div>'; return; }
+      if (lastRenderIndex >= filteredData.length) return; // nothing more
+      isRendering = true;
+      const slice = filteredData.slice(lastRenderIndex, lastRenderIndex + renderBatchSize);
+      const fragHtml = slice.map(createRestaurantCard).join('');
+      if (lastRenderIndex === 0) {
+        container.innerHTML = fragHtml; // first batch
+      } else {
+        container.insertAdjacentHTML('beforeend', fragHtml);
+      }
+      // Opportunistic logo preload for this batch
+      slice.forEach(r=>preloadAndCacheImage(r.company).then(()=>{
+        const card = container.querySelector(`.restaurant-card.list[data-id="${r.id}"]`);
+        if (card) { card.outerHTML = createRestaurantCard(r); }
+      }));
+      lastRenderIndex += slice.length;
+      isRendering = false;
+    }
+
+    function renderList() {
+      // Fresh render via infinite scroll batches
+      renderNextBatch();
+    }
+
+    function handleScrollInfinite() {
+      const container=document.getElementById('listContainer');
+      // Load next batch when near bottom (within 800px of bottom)
+      if (container.scrollTop + container.clientHeight + 800 >= container.scrollHeight) {
+        renderNextBatch();
+      }
+    }
+
+    function fetchRestaurants() {
+      fetch('/api/restaurants')
+        .then(r=>r.json())
+        .then(data => {
+          if(!Array.isArray(data)) return;
+          allRestaurantData = data;
+          populateCompanyDropdown(allRestaurantData);
+          applyFilters();
+          loadFilters();
+          // Opportunistic logo warmup for first 12
+          allRestaurantData.slice(0,12).forEach(r=>preloadAndCacheImage(r.company));
+        })
+        .catch(e=>{ console.error('Failed to load restaurants', e); });
+    }
+
+    function setDarkMode(isDark) {
+      document.body.classList.toggle('dark', isDark);
+      document.getElementById('darkModeToggle').textContent = isDark ? '☾' : '☀︎';
+      localStorage.setItem('fastMealDarkMode', isDark ? 'true':'false');
+    }
+    function getInitialDarkMode() {
+      const saved = localStorage.getItem('fastMealDarkMode');
+      if (saved !== null) return saved === 'true';
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
+    function requestGeolocation() {
+      const distanceOption = document.querySelector('#sortSelect option[value="distance"]');
+      if (!navigator.geolocation) { alert('Geolocation not supported in this browser.'); return; }
+      navigator.geolocation.getCurrentPosition(pos => {
+        userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        // Determine nearest restaurant distance
+        if (allRestaurantData.length) {
+          const distances = allRestaurantData.map(r => computeDistanceMiles(userPosition.lat, userPosition.lng, r.latitude, r.longitude));
+          const minDistance = Math.min(...distances.filter(d=>!isNaN(d)));
+          if (isFinite(minDistance) && minDistance <= 100) {
+            distanceOption.disabled = false;
+            // If user previously attempted to use distance (kept selection), auto sort now
+            if (document.getElementById('sortSelect').value === 'distance') {
+              sortData();
+              resetInfiniteScroll();
+              renderList();
+              return;
+            }
+          } else {
+            distanceOption.disabled = true;
+            alert('Distance sorting disabled (nearest restaurant is more than 100 miles away).');
+          }
+        } else {
+          distanceOption.disabled = true;
+        }
+        if (document.getElementById('sortSelect').value === 'distance' && !distanceOption.disabled) {
+          sortData();
+          resetInfiniteScroll();
+          renderList();
+        } else {
+          renderList();
+        }
+      }, err => {
+        alert('Location permission denied. Distance sorting unavailable.');
+      }, { enableHighAccuracy:true, timeout:8000 });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setDarkMode(getInitialDarkMode());
+      document.getElementById('darkModeToggle').addEventListener('click', () => setDarkMode(!document.body.classList.contains('dark')));
+      ['openNow','driveThru','open24h','companySelect'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => { applyFilters(); if(window.innerWidth<=640){ closeFilters(); } });
+      });
+      // Restore persisted sort (before adding listener)
+      try { const savedSort=localStorage.getItem('fastMealListSort'); if(savedSort){ const sel=document.getElementById('sortSelect'); if(['relevance','distance','name'].includes(savedSort)){ sel.value=savedSort; } } } catch(e){}
+      document.getElementById('sortSelect').addEventListener('change', () => { sortData(); resetInfiniteScroll(); renderList(); });
+      document.getElementById('locationBtn').addEventListener('click', requestGeolocation);
+      const hambtn=document.getElementById('hamburgerBtn');
+      const hamMenu=document.getElementById('hamburgerMenu');
+      hambtn.addEventListener('click',(e)=>{ e.stopPropagation(); hamMenu.classList.toggle('open'); });
+      document.addEventListener('click',(e)=>{ if(!hamMenu.contains(e.target) && e.target!==hambtn){ hamMenu.classList.remove('open'); } });
+      updateFilterBadge();
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeFilters(); hamMenu.classList.remove('open'); } });
+      // Infinite scroll listener
+      document.getElementById('listContainer').addEventListener('scroll', handleScrollInfinite, { passive:true });
+      fetchRestaurants();
+      // System preference listener (only if user hasn't explicitly toggled?)
+      if (window.matchMedia) {
+        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+        mq.addEventListener('change', e => {
+          if (localStorage.getItem('fastMealDarkMode') === null) setDarkMode(e.matches);
+        });
+      }
+    });
+  </script>
+</body>
+</html>
