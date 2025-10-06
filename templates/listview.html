@@ -50,8 +50,8 @@
 <body>
   <button class="hamburger" id="hamburgerBtn" aria-label="Menu">☰</button>
   <div class="hamburger-menu" id="hamburgerMenu">
-    <a href="/">Map</a>
     <a href="/list">List</a>
+    <a href="/map">Map</a>
     <a href="/deals">Deals</a>
     <a href="/menu" style="border-top:1px solid var(--input-border);margin-top:4px;">Menu</a>
   </div>
@@ -61,6 +61,7 @@
   <button class="filter-toggle" onclick="toggleFilters()">Filters<span class="filter-badge" id="filterBadge"></span></button>
   <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode" style="z-index:120;">☀︎</button>
   <button id="locationBtn" class="location-btn" title="Use my location" style="z-index:120;">📍</button>
+  <div id="geoStatus" class="visually-hidden" aria-live="polite"></div>
   <div class="filter-panel" id="filterPanel">
     <h3>Browse Options</h3>
     <div class="filter-group">
@@ -381,6 +382,8 @@
     }
 
     function requestGeolocation() {
+      // Show loading state
+      setLocationLoading(true);
       const distanceOption = document.querySelector('#sortSelect option[value="distance"]');
       if (!navigator.geolocation) { alert('Geolocation not supported in this browser.'); return; }
       navigator.geolocation.getCurrentPosition(pos => {
@@ -391,13 +394,17 @@
           const minDistance = Math.min(...distances.filter(d=>!isNaN(d)));
           if (isFinite(minDistance) && minDistance <= 100) {
             distanceOption.disabled = false;
-            // If user previously attempted to use distance (kept selection), auto sort now
-            if (document.getElementById('sortSelect').value === 'distance') {
-              sortData();
-              resetInfiniteScroll();
-              renderList();
-              return;
-            }
+            // Auto-switch to distance sort when user explicitly requests location
+            const sortSelect = document.getElementById('sortSelect');
+            const previous = sortSelect.value;
+            sortSelect.value = 'distance';
+            // Persist selection & re-render
+            sortData();
+            resetInfiniteScroll();
+            renderList();
+            // Early return since we've already handled re-render
+            setLocationLoading(false);
+            return;
           } else {
             distanceOption.disabled = true;
             alert('Distance sorting disabled (nearest restaurant is more than 100 miles away).');
@@ -412,9 +419,28 @@
         } else {
           renderList();
         }
+        setLocationLoading(false);
       }, err => {
         alert('Location permission denied. Distance sorting unavailable.');
+        setLocationLoading(false);
       }, { enableHighAccuracy:true, timeout:8000 });
+    }
+
+    function setLocationLoading(isLoading){
+      const btn = document.getElementById('locationBtn');
+      const status = document.getElementById('geoStatus');
+      if(!btn) return;
+      if(isLoading){
+        btn.classList.add('loading');
+        btn.disabled = true;
+        btn.setAttribute('aria-busy','true');
+        if(status) status.textContent = 'Locating…';
+      } else {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        if(status) status.textContent = '';
+      }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -445,5 +471,13 @@
       }
     });
   </script>
+  <style>
+    /* Compact geolocation spinner overlay */
+    .location-btn.loading { opacity:.85; }
+    .location-btn.loading::after { content:""; position:absolute; width:18px; height:18px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:fmf-spin .7s linear infinite; }
+    @keyframes fmf-spin { to { transform: rotate(360deg); } }
+    .visually-hidden { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); border:0; }
+    @media (max-width:640px){ .location-btn { right:54px; } }
+  </style>
 </body>
 </html>

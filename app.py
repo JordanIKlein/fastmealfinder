@@ -78,6 +78,41 @@ def convert_to_24hr(time_str):
     #print(f"Warning: failed to parse time '{time_str}'")
     return None
 
+# --- New helper to robustly pre-clean raw hour range strings before regex matching ---
+_COMPACT_TIME_RE = re.compile(r"\b(\d{1,2})([0-5][0-9])(am|pm)\b", re.IGNORECASE)
+_SPACE_AMPM_RE = re.compile(r"\b(\d{1,2})(:?\d{0,2})\s+(am|pm)\b", re.IGNORECASE)
+
+def preprocess_hours_string(raw: str) -> str:
+    """Return a normalized hours string that is easier to parse.
+
+    Steps:
+      1. Trim & collapse internal excessive whitespace.
+      2. Normalize hyphen spacing to " - ".
+      3. Insert a colon in compact times like 1030am -> 10:30am, 530pm -> 5:30pm.
+      4. Remove stray spaces before am/pm (e.g. '10  pm' -> '10pm').
+      5. Lowercase for keyword checks, but we preserve original case for readability by reusing transformed string (not forcing full lowercase except where comparisons occur).
+    """
+    if not raw or not isinstance(raw, str):
+        return raw
+    s = raw.strip()
+    # Normalize any weird unicode dashes to simple hyphen
+    s = re.sub(r"[\u2012\u2013\u2014\u2212]", '-', s)
+    # Collapse whitespace around hyphen to a single space on each side
+    s = re.sub(r"\s*-\s*", " - ", s)
+    # Collapse multiple spaces to single space (after hyphen normalization so we keep single surrounding spaces)
+    s = re.sub(r"\s{2,}", " ", s)
+    # Insert colon in compact times (must be 3-4 digits before am/pm)
+    s = _COMPACT_TIME_RE.sub(lambda m: f"{m.group(1)}:{m.group(2)}{m.group(3).lower()}", s)
+    # Remove stray spaces immediately before am/pm (e.g. "10 pm") – keep colon part if exists
+    s = _SPACE_AMPM_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}{m.group(3).lower()}", s)
+    # Standardize capitalization of keywords without altering times already processed
+    lower = s.lower()
+    if lower in {"open 24 hours", "24 hours", "24/7"}:
+        return "Open 24 hours"  # Canonical form
+    if lower in {"closed", "close"}:
+        return "Closed"
+    return s
+
 def normalize_hours(hours):
     """Normalize restaurant hours to a consistent format"""
     if not hours or not isinstance(hours, dict):
@@ -93,7 +128,8 @@ def normalize_hours(hours):
             continue
             
         if isinstance(value, str):
-            val = value.strip()
+            # Preprocess to normalize spacing & compact times prior to regex parsing
+            val = preprocess_hours_string(value)
             
             # Handle 24-hour operations
             if val.lower() in ["open 24 hours", "24 hours", "24/7"]:
@@ -105,8 +141,9 @@ def normalize_hours(hours):
                 continue
             
             # Parse time ranges like "6am - 3am" or "10:30am - 11:30pm"
-            time_range_pattern = r'(\d{1,2}:?\d{0,2}\s*(?:am|pm))\s*-\s*(\d{1,2}:?\d{0,2}\s*(?:am|pm))'
-            match = re.search(time_range_pattern, val.lower())
+            # Accept either compact or colon times, already normalized by preprocess_hours_string()
+            time_range_pattern = r'(\d{1,2}:?\d{0,2}(?:am|pm))\s*-\s*(\d{1,2}:?\d{0,2}(?:am|pm))'
+            match = re.search(time_range_pattern, val.replace(" ", "").lower())
             
             if match:
                 open_time_str = match.group(1)
@@ -212,12 +249,18 @@ def is_open_late(hours_dict):
 
 @app.route("/")
 def index():
-    return render_template('index.html') #, google_analytics_id=os.getenv('GOOGLE_ANALYTICS_ID')
+    return render_template('listview.html')
+
+@app.route('/map')
+def map_view():
+    """List-based restaurant view."""
+    return render_template('index.html')
 
 @app.route('/list')
 def list_view():
     """List-based restaurant view."""
     return render_template('listview.html')
+
 
 @app.route("/api/subscribe", methods=["POST"])
 def subscribe():
