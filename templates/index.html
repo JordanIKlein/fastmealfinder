@@ -101,10 +101,10 @@
     <div class="hamburger-menu" id="hamburgerMenu">
       <a href="/list">List</a>
       <a href="/map">Map</a>
-      <a href="/deals">Deals</a>
-      <a href="/menu">Menu</a>
+      <!-- <a href="/deals">Deals</a>
+      <a href="/menu">Menu</a> -->
     </div>
-    <div class="filter-panel" id="filterPanel">
+  <div class="filter-panel compact" id="filterPanel">
       <h3>Filter Restaurants</h3>
       
       <div class="filter-group">
@@ -637,6 +637,11 @@
         } catch (e) {
           console.warn('Could not restore saved company filter:', e);
         }
+      }
+      // If we have only a small subset (e.g. initial viewport limited fetch), proactively load all companies
+      if (!companiesLoadedGlobally && companySet.size > 0 && companySet.size < 15) {
+        // This will set companiesLoadedGlobally and repopulate once the full list arrives
+        populateCompaniesFromAllData();
       }
     }
     // Fallback: populate dropdown with all companies across all data
@@ -1243,6 +1248,8 @@
       document.getElementById('driveThru').addEventListener('change', ()=>{ applyFilters(); updateFilterBadge(); if(window.innerWidth<=640){ closeFilters(); } });
       document.getElementById('open24h').addEventListener('change', ()=>{ applyFilters(); updateFilterBadge(); if(window.innerWidth<=640){ closeFilters(); } });
       document.getElementById('companySelect').addEventListener('change', ()=>{ applyFilters(); updateFilterBadge(); if(window.innerWidth<=640){ closeFilters(); } });
+        // If user focuses the dropdown before we've globally loaded all companies, fetch full list
+        document.getElementById('companySelect').addEventListener('focus', ()=>{ if(!companiesLoadedGlobally){ populateCompaniesFromAllData(); } });
       document.getElementById('locationBtn').addEventListener('click', useMyLocation);
   const citySelectEl = document.getElementById('citySelect');
   if (citySelectEl) { citySelectEl.addEventListener('change', handleCityChange); }

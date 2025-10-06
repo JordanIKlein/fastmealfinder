@@ -7,7 +7,6 @@ import re
 
 import json
 from pool_connection import DatabasePoolConnection
-# Change to env variables in production.
 # Load Mailchimp settings (you can use environment variables in production)
 MAILCHIMP_API_KEY = os.getenv('MAILCHIMP_API_KEY')
 MAILCHIMP_LIST_ID = os.getenv('MAILCHIMP_LIST_ID')

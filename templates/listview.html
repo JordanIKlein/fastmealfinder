@@ -12,12 +12,102 @@
     body, html { overflow: hidden; }
     .list-wrapper { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; }
   .list-container { overflow-y:auto; padding:88px 18px 140px 18px; background: var(--bg-color); display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:18px; }
-    .restaurant-card.list { min-width:unset; max-width:100%; border:1px solid var(--input-border); border-radius:12px; background: var(--bg-color); box-shadow:0 4px 16px rgba(0,0,0,0.12); display:flex; flex-direction:column; transition: box-shadow .25s, transform .2s; }
+    /* Thicker, high-contrast card borders (black in light mode, subtle in dark) */
+    .restaurant-card.list { min-width:unset; max-width:100%; border:3px solid #000; border-radius:14px; background: var(--bg-color); box-shadow:0 4px 16px rgba(0,0,0,0.12); display:flex; flex-direction:column; transition: box-shadow .25s, transform .2s, border-color .25s; }
+    body.dark .restaurant-card.list { border-color:#444; box-shadow:0 4px 18px rgba(0,0,0,0.45); }
+    .restaurant-card.list:hover { border-color:#000; }
+    body.dark .restaurant-card.list:hover { border-color:#666; }
     .restaurant-card.list:hover { box-shadow:0 6px 22px rgba(0,0,0,0.18); transform:translateY(-2px); }
     .badge-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
     .distance-pill { background:#f3f3f3; color:#444; font-size:12px; font-weight:600; padding:4px 8px; border-radius:14px; letter-spacing:.02em; }
     body.dark .distance-pill { background:#23272f; color:#e0e0e0; }
-    .filters-inline-btn { background:var(--btn-bg); color:var(--btn-text); border:none; padding:10px 14px; border-radius:8px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px var(--filter-shadow); }
+  .filters-inline-btn { background:var(--btn-bg); color:var(--btn-text); border:none; padding:10px 14px; border-radius:8px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px var(--filter-shadow); }
+  /* Accessible high-contrast action buttons inside list cards */
+  .restaurant-card.list .actions-section .contact-btn,
+  .restaurant-card.list .actions-section .action-btn {
+    position: relative;
+    font-weight:600;
+    letter-spacing:.02em;
+    border-radius:10px;
+    line-height:1.15;
+    padding:12px 18px;
+    font-size:14px;
+    text-decoration:none;
+    cursor:pointer;
+    border:2px solid #0d6efd;
+    background:#f8f9fb;
+    color:#0d3a66;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    transition: background .22s, color .22s, border-color .22s, transform .15s;
+  }
+  .restaurant-card.list .actions-section .contact-btn:hover,
+  .restaurant-card.list .actions-section .action-btn:hover,
+  .restaurant-card.list .actions-section .contact-btn:focus-visible,
+  .restaurant-card.list .actions-section .action-btn:focus-visible {
+    background:#0d6efd;
+    color:#fff !important;
+    border-color:#0b5ed7;
+    outline:none;
+  }
+  .restaurant-card.list .actions-section .contact-btn:active,
+  .restaurant-card.list .actions-section .action-btn:active {
+    transform:translateY(1px);
+  }
+  /* Dark mode adjustments */
+  body.dark .restaurant-card.list .actions-section .contact-btn,
+  body.dark .restaurant-card.list .actions-section .action-btn {
+    background:#1f2b33;
+    color:#d2e9ff;
+    border-color:#4da3ff;
+  }
+  body.dark .restaurant-card.list .actions-section .contact-btn:hover,
+  body.dark .restaurant-card.list .actions-section .action-btn:hover,
+  body.dark .restaurant-card.list .actions-section .contact-btn:focus-visible,
+  body.dark .restaurant-card.list .actions-section .action-btn:focus-visible {
+    background:#4da3ff;
+    color:#04131e !important;
+    border-color:#76c2ff;
+  }
+  /* Brand-specific delivery buttons */
+  .restaurant-card.list .doordash-btn {
+    background:#ff3008;
+    border:2px solid #ff3008;
+    color:#d82806 !important;
+  }
+  .restaurant-card.list .doordash-btn:hover,
+  .restaurant-card.list .doordash-btn:focus-visible {
+    background:#d82806;
+    border-color:#d82806;
+    color:#fff !important;
+  }
+  body.dark .restaurant-card.list .doordash-btn { box-shadow:0 0 0 2px rgba(255,255,255,0.06); }
+  .restaurant-card.list .ubereats-btn {
+    background:#0b0b0b;
+    border:2px solid #00e0b4;
+    color:#00e0b4 !important;
+  }
+  .restaurant-card.list .ubereats-btn:hover,
+  .restaurant-card.list .ubereats-btn:focus-visible {
+    background:#00e0b4;
+    color:#0b0b0b !important;
+    border-color:#00e0b4;
+  }
+  body.dark .restaurant-card.list .ubereats-btn { background:#111; }
+  body.dark .restaurant-card.list .ubereats-btn:hover,
+  body.dark .restaurant-card.list .ubereats-btn:focus-visible { background:#00f4c7; color:#08211b !important; border-color:#00f4c7; }
+  /* Focus ring fallback (non focus-visible supporting browsers) */
+  .restaurant-card.list .actions-section .contact-btn:focus:not(:focus-visible),
+  .restaurant-card.list .actions-section .action-btn:focus:not(:focus-visible) { outline:none; }
+  .restaurant-card.list .actions-section .contact-btn:focus-visible,
+  .restaurant-card.list .actions-section .action-btn:focus-visible { box-shadow:0 0 0 3px rgba(13,110,253,0.35); }
+  body.dark .restaurant-card.list .actions-section .contact-btn:focus-visible,
+  body.dark .restaurant-card.list .actions-section .action-btn:focus-visible { box-shadow:0 0 0 3px rgba(77,163,255,0.45); }
+  /* Ensure legacy inline styles (if any remain) are overridden */
+  .restaurant-card.list .actions-section .contact-btn[style] { color:#0d3a66 !important; border-color:#0d6efd !important; }
+  body.dark .restaurant-card.list .actions-section .contact-btn[style] { color:#d2e9ff !important; border-color:#4da3ff !important; }
     .filters-inline-btn:hover { background:var(--btn-hover-bg); }
     .empty-state { grid-column: 1/-1; text-align:center; padding:60px 20px; font-size:18px; font-weight:600; opacity:.7; }
     .footer { position:fixed; }
@@ -43,7 +133,9 @@
   .filter-toggle.has-active .filter-badge { display:flex; }
   body.dark .filter-toggle .filter-badge { background:#ff6b6b; }
   /* Remove scroll from filter panel in list view */
-  .filter-panel { overflow:hidden !important; height:auto; max-height:none; top:75px; }
+  /* Allow panel itself to scroll if content grows (e.g., many restaurants) */
+  .filter-panel { overflow-y:auto !important; height:auto; max-height:calc(100% - 140px); top:75px; }
+  @media (max-width:640px){ .filter-panel { max-height:calc(100% - 150px); } }
   @media (max-width:640px){ .filter-panel { top:70px; } }
   /* Match map view location button placement */
   .location-btn { position:fixed; right:10px; bottom:110px; top:auto; left:auto; width:50px; height:50px; padding:10px; background:var(--btn-bg); color:var(--btn-text); border:none; border-radius:8px; font-size:18px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px var(--filter-shadow); display:inline-flex; align-items:center; justify-content:center; }
@@ -56,8 +148,8 @@
   <div class="hamburger-menu" id="hamburgerMenu">
     <a href="/list">List</a>
     <a href="/map">Map</a>
-    <a href="/deals">Deals</a>
-    <a href="/menu" style="border-top:1px solid var(--input-border);margin-top:4px;">Menu</a>
+      <!-- <a href="/deals">Deals</a>
+      <a href="/menu">Menu</a> -->
   </div>
   <a class="logo" href="/" style="position:absolute;top:6px;left:10px;z-index:110;">
     <img src="static/images/icon.webp" alt="Fast Meal Finder Logo" loading="lazy" width="300" height="231">
@@ -74,7 +166,7 @@
     </span>
   </button>
   <div id="geoStatus" class="visually-hidden" aria-live="polite"></div>
-  <div class="filter-panel" id="filterPanel">
+  <div class="filter-panel compact" id="filterPanel">
     <h3>Browse Options</h3>
     <div class="filter-group">
       <label for="sortSelect">Sort</label>
@@ -84,6 +176,13 @@
         <option value="name">Name (A–Z)</option>
       </select>
     </div>
+    <!-- Restaurants dropdown moved directly under Sort -->
+    <div class="filter-group">
+      <label for="companySelect">Restaurants</label>
+      <select id="companySelect">
+        <option value="">All Restaurants</option>
+      </select>
+    </div>
     <div class="filter-group">
       <label>Filters</label>
       <div class="checkbox-group">
@@ -91,12 +190,6 @@
         <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px;"><input type="checkbox" id="driveThru"> Drive-Thru</label>
         <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px;"><input type="checkbox" id="open24h"> 24-Hour</label>
       </div>
-    </div>
-    <div class="filter-group">
-      <label for="companySelect">Restaurants</label>
-      <select id="companySelect">
-        <option value="">All Restaurants</option>
-      </select>
     </div>
     <!-- Apply/Back removed: filters auto-apply -->
   </div>
@@ -219,10 +312,10 @@
               ${r.has_drive_thru?'<span class="feature-tag" style="font-size:11px;border-color:#007bff;color:#007bff;background:rgba(0,123,255,0.08);">🚗 Drive-Thru</span>':''}
             </div>
             <div class="actions-section" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
-              <button class="contact-btn" style="border:2px solid var(--btn-bg);color:var(--btn-bg);" onclick='openDirections(${JSON.stringify(r.address||'')},${JSON.stringify(r.city||'')},${JSON.stringify(r.state||'')},${JSON.stringify(r.zip||'')})'>Directions</button>
-              ${r.phone_number?`<a href="tel:${String(r.phone_number).replace(/[^+0-9]/g,'')}" class="contact-btn" style="border:2px solid var(--btn-bg);color:var(--btn-bg);text-align:center;">Call</a>`:''}
-              ${doorDashUrl?`<a href="${doorDashUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn doordash-btn" style="text-align:center;">DoorDash</a>`:''}
-              ${uberEatsUrl?`<a href="${uberEatsUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn ubereats-btn" style="text-align:center;">Uber Eats</a>`:''}
+              <button class="contact-btn directions-btn" onclick='openDirections(${JSON.stringify(r.address||'')},${JSON.stringify(r.city||'')},${JSON.stringify(r.state||'')},${JSON.stringify(r.zip||'')})'>Directions</button>
+              ${r.phone_number?`<a href="tel:${String(r.phone_number).replace(/[^+0-9]/g,'')}" class="contact-btn call-btn">Call</a>`:''}
+              ${doorDashUrl?`<a href="${doorDashUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn doordash-btn">DoorDash</a>`:''}
+              ${uberEatsUrl?`<a href="${uberEatsUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn ubereats-btn">Uber Eats</a>`:''}
             </div>
           </div>
         </div>`;
@@ -466,6 +559,10 @@
       document.getElementById('darkModeToggle').addEventListener('click', () => setDarkMode(!document.body.classList.contains('dark')));
       ['openNow','driveThru','open24h','companySelect'].forEach(id => {
         document.getElementById(id).addEventListener('change', () => { applyFilters(); if(window.innerWidth<=640){ closeFilters(); } });
+      });
+      // If initial dataset was limited for any reason, ensure full set loads on focus
+      document.getElementById('companySelect').addEventListener('focus', () => {
+        if(!allRestaurantData || allRestaurantData.length < 15){ fetchRestaurants(); }
       });
       // Restore persisted sort (before adding listener)
       try { const savedSort=localStorage.getItem('fastMealListSort'); if(savedSort){ const sel=document.getElementById('sortSelect'); if(['relevance','distance','name'].includes(savedSort)){ sel.value=savedSort; } } } catch(e){}
