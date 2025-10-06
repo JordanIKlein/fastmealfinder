@@ -45,6 +45,10 @@
   /* Remove scroll from filter panel in list view */
   .filter-panel { overflow:hidden !important; height:auto; max-height:none; top:75px; }
   @media (max-width:640px){ .filter-panel { top:70px; } }
+  /* Match map view location button placement */
+  .location-btn { position:fixed; right:10px; bottom:110px; top:auto; left:auto; width:50px; height:50px; padding:10px; background:var(--btn-bg); color:var(--btn-text); border:none; border-radius:8px; font-size:18px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px var(--filter-shadow); display:inline-flex; align-items:center; justify-content:center; }
+  .location-btn.loading { opacity:.85; }
+  @keyframes fmf-spin{ to { transform:rotate(360deg);} }
   </style>
 </head>
 <body>
@@ -60,7 +64,15 @@
   </a>
   <button class="filter-toggle" onclick="toggleFilters()">Filters<span class="filter-badge" id="filterBadge"></span></button>
   <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode" style="z-index:120;">☀︎</button>
-  <button id="locationBtn" class="location-btn" title="Use my location" style="z-index:120;">📍</button>
+  <!-- Location button explicitly positioned to mirror map view -->
+  <button id="locationBtn" class="location-btn" title="Use my location" aria-label="Use my location" style="z-index:120;position:fixed;right:10px;bottom:110px;top:auto;left:auto;width:50px;height:50px;padding:10px;display:inline-flex;align-items:center;justify-content:center;">
+    <span class="location-icon">📍</span>
+    <span class="location-spinner" style="display:none;vertical-align:middle;">
+      <span style="display:inline-block;width:18px;height:18px;position:relative;">
+        <span style="position:absolute;top:0;left:0;width:18px;height:18px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:fmf-spin .7s linear infinite;"></span>
+      </span>
+    </span>
+  </button>
   <div id="geoStatus" class="visually-hidden" aria-live="polite"></div>
   <div class="filter-panel" id="filterPanel">
     <h3>Browse Options</h3>
@@ -430,15 +442,21 @@
       const btn = document.getElementById('locationBtn');
       const status = document.getElementById('geoStatus');
       if(!btn) return;
+      const icon = btn.querySelector('.location-icon');
+      const spinner = btn.querySelector('.location-spinner');
       if(isLoading){
         btn.classList.add('loading');
         btn.disabled = true;
         btn.setAttribute('aria-busy','true');
+        if(icon) icon.style.display='none';
+        if(spinner) spinner.style.display='inline-block';
         if(status) status.textContent = 'Locating…';
       } else {
         btn.classList.remove('loading');
         btn.disabled = false;
         btn.removeAttribute('aria-busy');
+        if(icon) icon.style.display='inline';
+        if(spinner) spinner.style.display='none';
         if(status) status.textContent = '';
       }
     }
@@ -472,12 +490,13 @@
     });
   </script>
   <style>
-    /* Compact geolocation spinner overlay */
+    /* Compact geolocation spinner overlay (list view now uses inline spinner markup; removed ::after) */
     .location-btn.loading { opacity:.85; }
-    .location-btn.loading::after { content:""; position:absolute; width:18px; height:18px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:fmf-spin .7s linear infinite; }
+    /* Spinner animation keyframes reused */
     @keyframes fmf-spin { to { transform: rotate(360deg); } }
     .visually-hidden { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); border:0; }
-    @media (max-width:640px){ .location-btn { right:54px; } }
+    /* Keep same right offset on mobile as map view */
+    @media (max-width:640px){ .location-btn { right:10px; bottom:100px; } }
   </style>
 </body>
 </html>
