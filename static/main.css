@@ -7,11 +7,13 @@
   height: 100vh;
   background: rgba(0,0,0,0.35);
   z-index: 9999;
-  display: flex;
+  display: none; /* hidden by default; use .show to display */
+  pointer-events: none; /* ensure hidden overlay never captures clicks */
   align-items: center;
   justify-content: center;
   transition: opacity 0.2s;
 }
+.centered-popup-overlay.show { display: flex; pointer-events: auto; }
 
 .centered-popup-content {
   background: var(--bg-color);
@@ -241,6 +243,74 @@ body.dark .distance-label {
   background: #23272f;
   color: #e0e0e0;
 }
+
+/* === Hamburger button and menu === */
+.hamburger {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 1500;
+  background-color: var(--btn-bg);
+  color: var(--btn-text);
+  border: none;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px var(--filter-shadow);
+  transition: background-color 0.2s ease, transform 0.05s ease;
+}
+.hamburger:hover { background-color: var(--btn-hover-bg); }
+.hamburger:active { transform: translateY(1px); }
+
+.hamburger-menu {
+  position: fixed;
+  top: 60px; /* below the hamburger button */
+  right: 10px;
+  z-index: 1510;
+  background: var(--filter-bg);
+  color: var(--text-color);
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px var(--filter-shadow);
+  display: none;
+  min-width: 160px;
+  overflow: hidden;
+}
+
+.hamburger-menu.open { display: block; }
+.hamburger-menu a {
+  display: block;
+  padding: 10px 14px;
+  text-decoration: none;
+  color: var(--text-color);
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.15s ease;
+}
+.hamburger-menu a:hover { background: rgba(0,0,0,0.06); }
+body.dark .hamburger-menu a:hover { background: rgba(255,255,255,0.08); }
+
+/* Popup header row util */
+.header-top-row { display:flex; align-items:center; justify-content:space-between; }
+.mb-0 { margin-bottom: 0 !important; }
+
+/* Marker icon classes (no inline styles) */
+.logo-marker-container { width: 32px; height: 32px; position: relative; transition: all 0.3s ease; }
+.logo-marker { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background-color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.25); display:flex; align-items:center; justify-content:center; border: 3px solid var(--marker-color, #28a745); opacity: var(--marker-opacity, 1); position: relative; transition: all 0.3s ease; }
+.logo-marker.open { --marker-color:#28a745; --marker-opacity:1; }
+.logo-marker.closed { --marker-color:#dc3545; --marker-opacity:0.7; }
+.logo-marker img { width: 100%; height: 100%; object-fit: contain; transition: opacity 0.3s ease; }
+.logo-marker.closed img { filter: grayscale(30%); }
+.status-indicator { position:absolute; top:-3px; right:-3px; width:10px; height:10px; background: var(--marker-color, #28a745); border:2px solid #fff; border-radius:50%; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
+.status-indicator.pulse { animation: pulse-dot 2s infinite; }
+
+.circle-marker { width:100%; height:100%; border-radius:50%; background: var(--marker-color, #28a745); opacity: var(--marker-opacity, 1); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:bold; font-size:14px; box-shadow:0 2px 8px rgba(0,0,0,0.25); border:2px solid #fff; transition: all 0.3s ease; }
+.circle-marker.open { --marker-color:#28a745; --marker-opacity:1; }
+.circle-marker.closed { --marker-color:#dc3545; --marker-opacity:0.7; }
+.circle-marker.pulse { animation: pulse-circle 2s infinite; }
 :root {
     --bg-color: #fff;
     --text-color: #222;
@@ -301,8 +371,8 @@ html, body {
     position: fixed;
     top: 10px;
     left: 120px;
-    height: 50px;
-    z-index: 1100;
+  height: 50px;
+  z-index: 1500; /* raised to overlay tiles/markers */
     background-color: var(--btn-bg);
     color: var(--btn-text);
     border: none;
@@ -318,6 +388,11 @@ html, body {
 .filter-toggle:hover {
     background-color: var(--btn-hover-bg);
 }
+
+/* Filter badge (moved from inline styles) */
+.filter-toggle .filter-badge{position:absolute;top:4px;right:4px;width:14px;height:14px;border-radius:50%;background:#dc3545;color:#fff;font-size:10px;display:none;align-items:center;justify-content:center;font-weight:700;box-shadow:0 0 0 2px var(--btn-bg);} 
+.filter-toggle.has-active .filter-badge{display:flex;} 
+body.dark .filter-toggle .filter-badge{background:#ff6b6b;}
 
 /* === Dark Mode Toggle Button === */
 .dark-mode-toggle {
@@ -836,6 +911,31 @@ html, body {
     .location-btn:hover {
     background-color: var(--btn-hover-bg);
     }
+    /* Loading state + spinner for location button */
+    .location-btn.loading { opacity:.85; }
+    .location-btn .location-spinner { display:none; vertical-align:middle; }
+    .location-btn.loading .location-spinner { display:inline-block; }
+  .location-btn.loading .location-icon { display:none; }
+
+    /* Spinner structure (replaces inline styles) */
+    .location-spinner-wrap { display:inline-block; width:18px; height:18px; position:relative; }
+    .location-spinner-circle { position:absolute; top:0; left:0; width:18px; height:18px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:fmf-spin .7s linear infinite; }
+    @keyframes fmf-spin { to { transform: rotate(360deg); } }
+
+    /* Utility: visually hidden */
+    .visually-hidden { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); border:0; }
+
+    /* Footer privacy link (replaces inline style) */
+    .footer-privacy-link { align-self:center; margin-left:18px; font-size:14px; text-decoration:underline; color:inherit; line-height:1.2; display:inline-flex; align-items:center; height:36px; }
+
+    /* Hamburger menu (moved from index inline styles) */
+    .hamburger{position:fixed;top:10px;right:10px;z-index:1500;background:var(--btn-bg);color:var(--btn-text);border:none;border-radius:8px;padding:12px 16px;font-size:18px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px var(--filter-shadow);transition:background .25s,transform .15s;}
+    .hamburger:hover{background:var(--btn-hover-bg);} 
+    .hamburger:active{transform:scale(.92);} 
+    .hamburger-menu{position:fixed;top:60px;right:10px;z-index:1510;background:var(--filter-bg);border:1px solid var(--input-border);border-radius:12px;padding:8px 0;min-width:170px;box-shadow:0 10px 34px rgba(0,0,0,.35);opacity:0;transform:scale(.94);transform-origin:top right;pointer-events:none;transition:opacity .18s ease,transform .18s ease;} 
+    .hamburger-menu.open{opacity:1;transform:scale(1);pointer-events:auto;} 
+    .hamburger-menu a{display:block;padding:10px 20px;font-weight:600;font-size:14px;white-space:nowrap;text-decoration:none;color:var(--text-color);transition:background .2s,color .2s;} 
+    .hamburger-menu a:hover{background:var(--btn-hover-bg);color:var(--btn-text);} 
 
     /* === City Dropdown === */
     .city-dropdown {
@@ -860,6 +960,18 @@ html, body {
     border-color: var(--input-focus);
     outline: none;
     }
+
+    /* Intro modal paragraph/link styles (replacing inline styles) */
+    .intro-copy { font-family: Arial, sans-serif; line-height: 1.6; }
+    .link-primary-clean { color: #1a73e8; text-decoration: none; }
+
+    /* Intro modal visibility toggle */
+    .intro-modal.show { display: block; }
+
+    /* Email signup button loading state (no inline style toggles) */
+    .signup-btn .btn-loading { display: none; }
+    .signup-btn.is-loading .btn-loading { display: inline-flex; }
+    .signup-btn.is-loading .btn-text { display: none; }
     /* === Footer Styles === */
     .footer {
     position: fixed;

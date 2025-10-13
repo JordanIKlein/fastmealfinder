@@ -1,0 +1,141 @@
+/* List view overrides extracted from inline styles */
+
+/* Logo position override (was inline) */
+.listview .logo { position:absolute; top:6px; left:10px; z-index:110; }
+.listview .dark-mode-toggle { z-index:120; }
+
+/* Base layout from formerly inline styles */
+html, body { overflow:hidden; }
+.list-wrapper { position:absolute; inset:0; display:flex; flex-direction:column; }
+.list-container { overflow-y:auto; padding:88px 18px 140px 18px; background: var(--bg-color); display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:18px; }
+@media (max-width: 860px) { .list-container { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .list-container { padding:100px 14px 160px 14px; } }
+
+/* Cards: thicker, high-contrast borders */
+.restaurant-card.list { min-width:unset; max-width:100%; border:3px solid #000; border-radius:14px; background: var(--bg-color); box-shadow:0 4px 16px rgba(0,0,0,0.12); display:flex; flex-direction:column; transition: box-shadow .25s, transform .2s, border-color .25s; }
+body.dark .restaurant-card.list { border-color:#444; box-shadow:0 4px 18px rgba(0,0,0,0.45); }
+.restaurant-card.list:hover { border-color:#000; box-shadow:0 6px 22px rgba(0,0,0,0.18); transform:translateY(-2px); }
+body.dark .restaurant-card.list:hover { border-color:#666; }
+.badge-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.distance-pill { background:#f3f3f3; color:#444; font-size:12px; font-weight:600; padding:4px 8px; border-radius:14px; letter-spacing:.02em; }
+body.dark .distance-pill { background:#23272f; color:#e0e0e0; }
+
+/* Action buttons inside cards (theme-aware) */
+.restaurant-card.list .actions-section .contact-btn,
+.restaurant-card.list .actions-section .action-btn { position:relative; font-weight:600; letter-spacing:.02em; border-radius:10px; line-height:1.15; padding:12px 18px; font-size:14px; text-decoration:none; cursor:pointer; border:2px solid var(--btn-bg); background:transparent; color:var(--btn-bg); display:inline-flex; align-items:center; justify-content:center; gap:6px; transition: background .22s, color .22s, border-color .22s, transform .15s; }
+/* Hover invert */
+.restaurant-card.list .actions-section .contact-btn:hover,
+.restaurant-card.list .actions-section .action-btn:hover { background:var(--btn-bg); color:var(--btn-text) !important; border-color:var(--btn-bg); }
+body.dark .restaurant-card.list .actions-section .contact-btn:focus-visible,
+body.dark .restaurant-card.list .actions-section .action-btn:focus-visible { background:#4da3ff; color:#04131e !important; border-color:#76c2ff; }
+/* Brand-specific delivery buttons */
+.restaurant-card.list .doordash-btn {
+	background: #ff3008;
+	border: 2px solid #ff3008;
+	color: #111 !important;
+	transition: background .22s, color .22s, border-color .22s;
+}
+.restaurant-card.list .doordash-btn:hover,
+.restaurant-card.list .doordash-btn:focus-visible {
+	background: #d82806;
+	border-color: #d82806;
+	color: #fff !important;
+}
+body.dark .restaurant-card.list .doordash-btn {
+	background: #ff3008;
+	border-color: #ff3008;
+	color: #fff !important;
+	box-shadow: 0 0 0 2px rgba(255,255,255,0.06);
+}
+body.dark .restaurant-card.list .doordash-btn:hover,
+body.dark .restaurant-card.list .doordash-btn:focus-visible {
+	background: #d82806;
+	border-color: #d82806;
+	color: #fff !important;
+}
+.restaurant-card.list .ubereats-btn { background:#0b0b0b; border:2px solid #00e0b4; color:#00e0b4 !important; }
+.restaurant-card.list .ubereats-btn:hover, .restaurant-card.list .ubereats-btn:focus-visible { background:#00e0b4; color:#0b0b0b !important; border-color:#00e0b4; }
+body.dark .restaurant-card.list .ubereats-btn { background:#111; }
+body.dark .restaurant-card.list .ubereats-btn:hover, body.dark .restaurant-card.list .ubereats-btn:focus-visible { background:#00f4c7; color:#08211b !important; border-color:#00f4c7; }
+/* Focus ring fallback */
+.restaurant-card.list .actions-section .contact-btn:focus:not(:focus-visible),
+.restaurant-card.list .actions-section .action-btn:focus:not(:focus-visible) { outline:none; }
+.restaurant-card.list .actions-section .contact-btn:focus-visible,
+.restaurant-card.list .actions-section .action-btn:focus-visible { box-shadow:0 0 0 3px rgba(13,110,253,0.35); }
+body.dark .restaurant-card.list .actions-section .contact-btn:focus-visible,
+body.dark .restaurant-card.list .actions-section .action-btn:focus-visible { box-shadow:0 0 0 3px rgba(77,163,255,0.45); }
+
+/* Misc elements */
+.filters-inline-btn { background:var(--btn-bg); color:var(--btn-text); border:none; padding:10px 14px; border-radius:8px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px var(--filter-shadow); }
+.filters-inline-btn:hover { background:var(--btn-hover-bg); }
+.empty-state { grid-column: 1/-1; text-align:center; padding:60px 20px; font-size:18px; font-weight:600; opacity:.7; }
+.footer { position:fixed; }
+.logo { position:relative; top:0; left:0; box-shadow:0 4px 12px var(--btn-bg); }
+.logo img { width:90px; height:70px; }
+.legend-note { font-size:12px; opacity:.65; margin-top:6px; }
+.inline-checkboxes { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+.inline-checkboxes label { display:flex; gap:6px; align-items:center; font-size:13px; font-weight:600; cursor:pointer; }
+.inline-checkboxes input { width:16px; height:16px; cursor:pointer; accent-color:var(--btn-bg); }
+
+/* Hamburger + dropdown */
+.hamburger { position:fixed; top:10px; right:20px; z-index:1500; background:var(--btn-bg); color:var(--btn-text); border:none; border-radius:8px; padding:12px 16px; font-size:18px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px var(--filter-shadow); transition:background .25s, transform .15s; }
+.hamburger:hover { background:var(--btn-hover-bg); }
+.hamburger:active { transform:scale(.92); }
+.hamburger-menu { position:fixed; top:60px; right:10px; z-index:1510; background:var(--filter-bg); border:1px solid var(--input-border); border-radius:12px; padding:8px 0; min-width:170px; box-shadow:0 10px 34px rgba(0,0,0,.35); opacity:0; transform:scale(.94); transform-origin:top right; pointer-events:none; transition:opacity .18s ease, transform .18s ease; }
+.hamburger-menu.open { opacity:1; transform:scale(1); pointer-events:auto; }
+.hamburger-menu a { display:block; padding:10px 20px; font-weight:600; font-size:14px; white-space:nowrap; text-decoration:none; color:var(--text-color); transition:background .2s,color .2s; }
+.hamburger-menu a:hover { background:var(--btn-hover-bg); color:var(--btn-text); }
+
+/* Filter button badge indicator */
+.filter-toggle { position:fixed; top:10px; left:120px; z-index:1500; }
+.filter-toggle .filter-badge { position:absolute; top:4px; right:4px; width:14px; height:14px; border-radius:50%; background:#dc3545; color:#fff; font-size:10px; display:none; align-items:center; justify-content:center; font-weight:700; box-shadow:0 0 0 2px var(--btn-bg); }
+.filter-toggle.has-active .filter-badge { display:flex; }
+body.dark .filter-toggle .filter-badge { background:#ff6b6b; }
+
+/* Filter panel scroll constraint */
+.filter-panel { overflow-y:auto !important; height:auto; max-height:calc(100% - 140px); top:75px; }
+@media (max-width:640px){ .filter-panel { max-height:calc(100% - 150px); } }
+@media (max-width:640px){ .filter-panel { top:70px; } }
+
+/* Location button loading visual tweak (spinner visibility handled via main.css classes) */
+.location-btn.loading { opacity:.85; }
+
+/* Spinner utilities reuse main.css */
+/* Checkbox labels in filter panel */
+.inline-checkbox { display:flex; align-items:center; gap:6px; font-weight:600; font-size:14px; }
+
+/* Full-bleed list container */
+.listview .list-container-full { position:absolute; top:0; left:0; right:0; bottom:0; }
+
+/* Card header layout */
+.card-header.list { display:flex; gap:14px; align-items:flex-start; border-bottom:1px solid var(--input-border); }
+.header-col { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.header-row { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+.restaurant-name.list { margin:0; font-size:18px; }
+.hours-info.list { display:flex; flex-direction:column; gap:2px; }
+.primary-hours.small { font-size:13px; }
+.drive-thru-hours.small { font-size:11px; opacity:.75; }
+
+/* Card content */
+.card-content.list { padding:14px 16px; }
+.address-blurb { font-size:13px; font-weight:500; opacity:.85; line-height:1.4; }
+
+/* Feature tags */
+.feature-tag.small { font-size:11px; }
+.feature-tag.dt { border-color:#007bff; color:#007bff; background:rgba(0,123,255,0.08); }
+
+/* Logo avatar ring */
+.logo-avatar { width:52px; height:52px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,.18); border:4px solid transparent; overflow:hidden; }
+.logo-avatar.status-open { border-color:#28a745; }
+.logo-avatar.status-closed { border-color:#dc3545; }
+.logo-avatar-initial { color:#fff; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; }
+.logo-avatar-initial.status-open { background:#28a745; }
+.logo-avatar-initial.status-closed { background:#dc3545; }
+.logo-avatar-img { width:100%; height:100%; object-fit:contain; }
+.logo-avatar-img.closed { filter:grayscale(35%); opacity:.8; }
+
+/* Actions section */
+.actions-section.list { margin-top:12px; display:flex; flex-direction:column; gap:6px; }
+
+/* Footer privacy link reuse class */
+.footer-privacy-link { align-self:center; margin-left:18px; font-size:14px; text-decoration:underline; color:inherit; line-height:1.2; display:inline-flex; align-items:center; height:36px; }

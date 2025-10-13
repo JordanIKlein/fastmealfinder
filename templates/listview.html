@@ -7,143 +7,10 @@
   <meta name="description" content="Browse a list of open restaurants, drive-thrus, and 24-hour locations near you.">
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
   <link rel="stylesheet" href="static/main.css">
-  <style>
-    /* List view specific layout */
-    body, html { overflow: hidden; }
-    .list-wrapper { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; }
-  .list-container { overflow-y:auto; padding:88px 18px 140px 18px; background: var(--bg-color); display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:18px; }
-    /* Thicker, high-contrast card borders (black in light mode, subtle in dark) */
-    .restaurant-card.list { min-width:unset; max-width:100%; border:3px solid #000; border-radius:14px; background: var(--bg-color); box-shadow:0 4px 16px rgba(0,0,0,0.12); display:flex; flex-direction:column; transition: box-shadow .25s, transform .2s, border-color .25s; }
-    body.dark .restaurant-card.list { border-color:#444; box-shadow:0 4px 18px rgba(0,0,0,0.45); }
-    .restaurant-card.list:hover { border-color:#000; }
-    body.dark .restaurant-card.list:hover { border-color:#666; }
-    .restaurant-card.list:hover { box-shadow:0 6px 22px rgba(0,0,0,0.18); transform:translateY(-2px); }
-    .badge-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-    .distance-pill { background:#f3f3f3; color:#444; font-size:12px; font-weight:600; padding:4px 8px; border-radius:14px; letter-spacing:.02em; }
-    body.dark .distance-pill { background:#23272f; color:#e0e0e0; }
-  .filters-inline-btn { background:var(--btn-bg); color:var(--btn-text); border:none; padding:10px 14px; border-radius:8px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px var(--filter-shadow); }
-  /* Accessible high-contrast action buttons inside list cards */
-  .restaurant-card.list .actions-section .contact-btn,
-  .restaurant-card.list .actions-section .action-btn {
-    position: relative;
-    font-weight:600;
-    letter-spacing:.02em;
-    border-radius:10px;
-    line-height:1.15;
-    padding:12px 18px;
-    font-size:14px;
-    text-decoration:none;
-    cursor:pointer;
-    border:2px solid #0d6efd;
-    background:#f8f9fb;
-    color:#0d3a66;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    gap:6px;
-    transition: background .22s, color .22s, border-color .22s, transform .15s;
-  }
-  .restaurant-card.list .actions-section .contact-btn:hover,
-  .restaurant-card.list .actions-section .action-btn:hover,
-  .restaurant-card.list .actions-section .contact-btn:focus-visible,
-  .restaurant-card.list .actions-section .action-btn:focus-visible {
-    background:#0d6efd;
-    color:#fff !important;
-    border-color:#0b5ed7;
-    outline:none;
-  }
-  .restaurant-card.list .actions-section .contact-btn:active,
-  .restaurant-card.list .actions-section .action-btn:active {
-    transform:translateY(1px);
-  }
-  /* Dark mode adjustments */
-  body.dark .restaurant-card.list .actions-section .contact-btn,
-  body.dark .restaurant-card.list .actions-section .action-btn {
-    background:#1f2b33;
-    color:#d2e9ff;
-    border-color:#4da3ff;
-  }
-  body.dark .restaurant-card.list .actions-section .contact-btn:hover,
-  body.dark .restaurant-card.list .actions-section .action-btn:hover,
-  body.dark .restaurant-card.list .actions-section .contact-btn:focus-visible,
-  body.dark .restaurant-card.list .actions-section .action-btn:focus-visible {
-    background:#4da3ff;
-    color:#04131e !important;
-    border-color:#76c2ff;
-  }
-  /* Brand-specific delivery buttons */
-  .restaurant-card.list .doordash-btn {
-    background:#ff3008;
-    border:2px solid #ff3008;
-    color:#d82806 !important;
-  }
-  .restaurant-card.list .doordash-btn:hover,
-  .restaurant-card.list .doordash-btn:focus-visible {
-    background:#d82806;
-    border-color:#d82806;
-    color:#fff !important;
-  }
-  body.dark .restaurant-card.list .doordash-btn { box-shadow:0 0 0 2px rgba(255,255,255,0.06); }
-  .restaurant-card.list .ubereats-btn {
-    background:#0b0b0b;
-    border:2px solid #00e0b4;
-    color:#00e0b4 !important;
-  }
-  .restaurant-card.list .ubereats-btn:hover,
-  .restaurant-card.list .ubereats-btn:focus-visible {
-    background:#00e0b4;
-    color:#0b0b0b !important;
-    border-color:#00e0b4;
-  }
-  body.dark .restaurant-card.list .ubereats-btn { background:#111; }
-  body.dark .restaurant-card.list .ubereats-btn:hover,
-  body.dark .restaurant-card.list .ubereats-btn:focus-visible { background:#00f4c7; color:#08211b !important; border-color:#00f4c7; }
-  /* Focus ring fallback (non focus-visible supporting browsers) */
-  .restaurant-card.list .actions-section .contact-btn:focus:not(:focus-visible),
-  .restaurant-card.list .actions-section .action-btn:focus:not(:focus-visible) { outline:none; }
-  .restaurant-card.list .actions-section .contact-btn:focus-visible,
-  .restaurant-card.list .actions-section .action-btn:focus-visible { box-shadow:0 0 0 3px rgba(13,110,253,0.35); }
-  body.dark .restaurant-card.list .actions-section .contact-btn:focus-visible,
-  body.dark .restaurant-card.list .actions-section .action-btn:focus-visible { box-shadow:0 0 0 3px rgba(77,163,255,0.45); }
-  /* Ensure legacy inline styles (if any remain) are overridden */
-  .restaurant-card.list .actions-section .contact-btn[style] { color:#0d3a66 !important; border-color:#0d6efd !important; }
-  body.dark .restaurant-card.list .actions-section .contact-btn[style] { color:#d2e9ff !important; border-color:#4da3ff !important; }
-    .filters-inline-btn:hover { background:var(--btn-hover-bg); }
-    .empty-state { grid-column: 1/-1; text-align:center; padding:60px 20px; font-size:18px; font-weight:600; opacity:.7; }
-    .footer { position:fixed; }
-    .logo { position:relative; top:0; left:0; box-shadow:0 4px 12px var(--btn-bg); }
-    .logo img { width:90px; height:70px; }
-    .legend-note { font-size:12px; opacity:.65; margin-top:6px; }
-    .inline-checkboxes { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
-    .inline-checkboxes label { display:flex; gap:6px; align-items:center; font-size:13px; font-weight:600; cursor:pointer; }
-    .inline-checkboxes input { width:16px; height:16px; cursor:pointer; accent-color:var(--btn-bg); }
-  @media (max-width: 860px) { .list-container { grid-template-columns: 1fr; } }
-  @media (max-width: 600px) { .list-container { padding:100px 14px 160px 14px; } }
-  /* Hamburger + animated dropdown (list view override) */
-  .hamburger { position:fixed; top:10px; right:20px; z-index:1500; background:var(--btn-bg); color:var(--btn-text); border:none; border-radius:8px; padding:12px 16px; font-size:18px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px var(--filter-shadow); transition:background .25s, transform .15s; }
-  .hamburger:hover { background:var(--btn-hover-bg); }
-  .hamburger:active { transform:scale(.92); }
-  .hamburger-menu { position:fixed; top:60px; right:10px; z-index:1510; background:var(--filter-bg); border:1px solid var(--input-border); border-radius:12px; padding:8px 0; min-width:170px; box-shadow:0 10px 34px rgba(0,0,0,.35); opacity:0; transform:scale(.94); transform-origin:top right; pointer-events:none; transition:opacity .18s ease, transform .18s ease; }
-  .hamburger-menu.open { opacity:1; transform:scale(1); pointer-events:auto; }
-  .hamburger-menu a { display:block; padding:10px 20px; font-weight:600; font-size:14px; white-space:nowrap; text-decoration:none; color:var(--text-color); transition:background .2s,color .2s; }
-  .hamburger-menu a:hover { background:var(--btn-hover-bg); color:var(--btn-text); }
-  /* Filter button badge indicator */
-  .filter-toggle { position:fixed; top:10px; left:120px; z-index:1500; }
-  .filter-toggle .filter-badge { position:absolute; top:4px; right:4px; width:14px; height:14px; border-radius:50%; background:#dc3545; color:#fff; font-size:10px; display:none; align-items:center; justify-content:center; font-weight:700; box-shadow:0 0 0 2px var(--btn-bg); }
-  .filter-toggle.has-active .filter-badge { display:flex; }
-  body.dark .filter-toggle .filter-badge { background:#ff6b6b; }
-  /* Remove scroll from filter panel in list view */
-  /* Allow panel itself to scroll if content grows (e.g., many restaurants) */
-  .filter-panel { overflow-y:auto !important; height:auto; max-height:calc(100% - 140px); top:75px; }
-  @media (max-width:640px){ .filter-panel { max-height:calc(100% - 150px); } }
-  @media (max-width:640px){ .filter-panel { top:70px; } }
-  /* Match map view location button placement */
-  .location-btn { position:fixed; right:10px; bottom:110px; top:auto; left:auto; width:50px; height:50px; padding:10px; background:var(--btn-bg); color:var(--btn-text); border:none; border-radius:8px; font-size:18px; font-weight:600; cursor:pointer; box-shadow:0 4px 12px var(--filter-shadow); display:inline-flex; align-items:center; justify-content:center; }
-  .location-btn.loading { opacity:.85; }
-  @keyframes fmf-spin{ to { transform:rotate(360deg);} }
-  </style>
+  <link rel="stylesheet" href="static/list.css">
+  
 </head>
-<body>
+<body class="listview">
   <button class="hamburger" id="hamburgerBtn" aria-label="Menu">☰</button>
   <div class="hamburger-menu" id="hamburgerMenu">
     <a href="/list">List</a>
@@ -151,17 +18,17 @@
       <!-- <a href="/deals">Deals</a>
       <a href="/menu">Menu</a> -->
   </div>
-  <a class="logo" href="/" style="position:absolute;top:6px;left:10px;z-index:110;">
+  <a class="logo" href="/">
     <img src="static/images/icon.webp" alt="Fast Meal Finder Logo" loading="lazy" width="300" height="231">
   </a>
-  <button class="filter-toggle" onclick="toggleFilters()">Filters<span class="filter-badge" id="filterBadge"></span></button>
-  <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode" style="z-index:120;">☀︎</button>
-  <!-- Location button explicitly positioned to mirror map view -->
-  <button id="locationBtn" class="location-btn" title="Use my location" aria-label="Use my location" style="z-index:120;position:fixed;right:10px;bottom:110px;top:auto;left:auto;width:50px;height:50px;padding:10px;display:inline-flex;align-items:center;justify-content:center;">
+  <button class="filter-toggle" id="filterToggleBtn">Filters<span class="filter-badge" id="filterBadge"></span></button>
+  <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode">☀︎</button>
+  <!-- Location button matches index.html -->
+  <button class="location-btn" id="locationBtn" aria-label="Use my location">
     <span class="location-icon">📍</span>
-    <span class="location-spinner" style="display:none;vertical-align:middle;">
-      <span style="display:inline-block;width:18px;height:18px;position:relative;">
-        <span style="position:absolute;top:0;left:0;width:18px;height:18px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:fmf-spin .7s linear infinite;"></span>
+    <span class="location-spinner">
+      <span class="location-spinner-wrap">
+        <span class="location-spinner-circle"></span>
       </span>
     </span>
   </button>
@@ -186,28 +53,43 @@
     <div class="filter-group">
       <label>Filters</label>
       <div class="checkbox-group">
-        <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px;"><input type="checkbox" id="openNow" checked> Open Now</label>
-        <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px;"><input type="checkbox" id="driveThru"> Drive-Thru</label>
-        <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px;"><input type="checkbox" id="open24h"> 24-Hour</label>
+        <label class="inline-checkbox"><input type="checkbox" id="openNow" checked> Open Now</label>
+        <label class="inline-checkbox"><input type="checkbox" id="driveThru"> Drive-Thru</label>
+        <label class="inline-checkbox"><input type="checkbox" id="open24h"> 24-Hour</label>
       </div>
     </div>
     <!-- Apply/Back removed: filters auto-apply -->
   </div>
-  <div id="listContainer" class="list-container" aria-live="polite" style="position:absolute;top:0;left:0;right:0;bottom:0;"></div>
+  <div id="listContainer" class="list-container list-container-full" aria-live="polite"></div>
 
   <footer class="footer">
     <div class="footer-content">
       <span>FastMealFinder © 2025</span>
       <div class="social-icons">
-        <a href="https://www.instagram.com/fastmealfinder/" target="_blank" aria-label="Instagram" class="social-icon">IG</a>
-        <a href="https://x.com/fastmealfinder" target="_blank" aria-label="Twitter" class="social-icon">X</a>
-        <a href="https://discord.gg/w4XtgbkqPX" target="_blank" aria-label="Discord" class="social-icon">DC</a>
-        <a href="{{ url_for('disclaimer') }}" class="footer-link" style="align-self:center; margin-left:18px; font-size:14px; text-decoration:underline; color:inherit; line-height:1.2; display:inline-flex; align-items:center; height:36px;">Disclaimer and Privacy</a>
+          <a href="https://www.instagram.com/fastmealfinder/" target="_blank" aria-label="Instagram" class="social-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+            </svg>
+          </a>
+          <a href="https://x.com/fastmealfinder" target="_blank" aria-label="Twitter" class="social-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.61 7.07c.01.15.01.3.01.46 0 4.71-3.58 10.15-10.15 10.15-2.01 0-3.88-.59-5.46-1.61a7.14 7.14 0 0 0 5.25-1.47 3.57 3.57 0 0 1-3.33-2.47 3.57 3.57 0 0 0 1.61-.06 3.57 3.57 0 0 1-2.86-3.5v-.05a3.58 3.58 0 0 0 1.61.44 3.57 3.57 0 0 1-1.11-4.76 10.14 10.14 0 0 0 7.36 3.73 4.03 4.03 0 0 1-.09-.82 3.57 3.57 0 0 1 6.17-2.44 7.03 7.03 0 0 0 2.26-.86 3.57 3.57 0 0 1-1.57 1.97 7.12 7.12 0 0 0 2.05-.56 7.3 7.3 0 0 1-1.78 1.84z"/>
+            </svg>
+          </a>
+          <a href="https://discord.gg/w4XtgbkqPX" target="_blank" aria-label="Discord" class="social-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 245 240" fill="currentColor">
+              <path d="M104.4 104.5c-5.7 0-10.2 5-10.2 11.2s4.6 11.2 10.2 11.2c5.7 0 10.3-5 10.2-11.2.1-6.2-4.5-11.2-10.2-11.2zm36.2 0c-5.7 0-10.2 5-10.2 11.2s4.6 11.2 10.2 11.2c5.7 0 10.3-5 10.2-11.2.1-6.2-4.5-11.2-10.2-11.2z"/>
+              <path d="M189.5 20h-134C42.9 20 20 42.9 20 75.5v89C20 197.1 42.9 220 75.5 220h113.9l-5.3-18.3 12.8 11.9 12.1 11.2 21.5 19V75.5C240 42.9 217.1 20 189.5 20zM163.3 167s-5-6-9.1-11.2c18.1-5.1 25-16.3 25-16.3-5.7 3.8-11.1 6.5-15.9 8.3-6.9 2.9-13.5 4.8-19.9 5.9-13.1 2.4-25.1 1.8-35.3-.1-7.8-1.5-14.5-3.6-20-5.9-3.1-1.2-6.5-2.8-9.9-4.8-.4-.2-.8-.3-1.2-.5-.3-.2-.5-.3-.6-.4-2.6-1.4-4-2.3-4-2.3s6.7 11.1 24.4 16.3c-4.1 5.2-9.2 11.3-9.2 11.3-30.4-1-41.9-20.9-41.9-20.9 0-44.3 19.8-80.3 19.8-80.3C71.1 65 86.9 64 86.9 64l1.8 2.2C66 73.9 58.8 83 58.8 83s3.4-1.9 9.2-4.6c16.6-7.3 29.8-9.3 35.2-9.7 1-.1 1.9-.2 2.9-.2 10.4-.8 22-1 33.7.3 15.9 1.8 33 6.6 50.5 16.3 0 0-7.9-9.4-24.9-16.1l2.5-2.9s15.8-1 31.2 11.6c0 0 19.8 36 19.8 80.3 0 0-11.6 19.9-42 20.9z"/>
+            </svg>
+          </a>
+          <a href="{{ url_for('disclaimer') }}" class="footer-link footer-privacy-link">Disclaimer and Privacy</a>
       </div>
     </div>
   </footer>
 
-  <script>
+  <script nonce="{{ csp_nonce }}">
     // --- State ---
     let allRestaurantData = [];
   let filteredData = [];
@@ -216,6 +98,11 @@
   let isRendering = false;  // guard
     let imageCache = new Map();
     let userPosition = null;
+
+    // Safe encode for HTML attribute contexts
+    function escAttr(s){
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
 
     function sanitizeCompanyName(name) {
       return (name || '').toLowerCase().replace(/\s+/g,'-').replace(/'/g,'').replace(/&/g,'and');
@@ -265,7 +152,7 @@
       }
     }
 
-    function createRestaurantCard(r) {
+  function createRestaurantCard(r) {
       const dineInOpen = r.open_now_dine_in; const driveThruOpen = r.open_now_drive_thru;
       const dineInHoursToday = getTodayHours(r.normalized_hours_dine_in);
       const driveThruHoursToday = getTodayHours(r.normalized_hours_drive_thru);
@@ -280,39 +167,41 @@
       const logoLoaded = imageCache.has(r.company);
       const logoUrl = imageCache.get(r.company);
       const initial = (r.company||'?').charAt(0).toUpperCase();
-      const statusColor = (dineInOpen||driveThruOpen)? '#28a745':'#dc3545';
+      const statusClass = (dineInOpen||driveThruOpen) ? 'status-open' : 'status-closed';
       const markerCircle = `
-        <div style="width:52px;height:52px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.18);border:4px solid ${statusColor};overflow:hidden;">
-          ${logoLoaded && logoUrl ? `<img src="${logoUrl}" alt="${r.company}" style="width:100%;height:100%;object-fit:contain;${(dineInOpen||driveThruOpen)?'':'filter:grayscale(35%);opacity:.8;'}">` : `<span style=\"color:#fff;background:${statusColor};width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;\">${initial}</span>`}
+        <div class="logo-avatar ${statusClass}">
+          ${logoLoaded && logoUrl 
+            ? `<img class="logo-avatar-img ${dineInOpen||driveThruOpen ? '' : 'closed'}" src="${logoUrl}" alt="${r.company}">`
+            : `<span class=\"logo-avatar-initial ${statusClass}\">${initial}</span>`}
         </div>`;
 
       return `
         <div class="restaurant-card list" data-id="${r.id}">
-          <div class="card-header" style="display:flex; gap:14px; align-items:flex-start; border-bottom:1px solid var(--input-border);">
+          <div class="card-header list">
             ${markerCircle}
-            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-                <h3 class="restaurant-name" style="margin:0;font-size:18px;">${r.company}</h3>
+            <div class="header-col">
+              <div class="header-row">
+                <h3 class="restaurant-name list">${r.company}</h3>
                 ${distanceHtml}
               </div>
-              <div class="hours-info" style="display:flex;flex-direction:column;gap:2px;">
-                <div class="primary-hours ${dineInOpen? '' : 'closed'}" style="font-size:13px;">${dineInStatus}</div>
-                ${r.has_drive_thru && driveThruHoursToday ? `<div class="drive-thru-hours" style="font-size:11px;opacity:.75;">Drive-thru: ${driveThruStatus}</div>`:''}
+              <div class="hours-info list">
+                <div class="primary-hours small ${dineInOpen? '' : 'closed'}">${dineInStatus}</div>
+                ${r.has_drive_thru && driveThruHoursToday ? `<div class="drive-thru-hours small">Drive-thru: ${driveThruStatus}</div>`:''}
               </div>
             </div>
           </div>
-          <div class="card-content" style="padding:14px 16px;">
-            <div style="font-size:13px; font-weight:500; opacity:.85; line-height:1.4;">
+          <div class="card-content list">
+            <div class="address-blurb">
               ${[r.address, r.city, r.state, r.zip].filter(Boolean).join(', ')}
             </div>
             <div class="badge-row">
-              ${r.has_wifi?'<span class="feature-tag wifi" style="font-size:11px;">🛜 WiFi</span>':''}
-              ${r.has_online_ordering?'<span class="feature-tag online-ordering" style="font-size:11px;">💻 Online</span>':''}
-              ${r.has_catering?'<span class="feature-tag catering" style="font-size:11px;">🍽️ Catering</span>':''}
-              ${r.has_drive_thru?'<span class="feature-tag" style="font-size:11px;border-color:#007bff;color:#007bff;background:rgba(0,123,255,0.08);">🚗 Drive-Thru</span>':''}
+              ${r.has_wifi?'<span class="feature-tag wifi small">🛜 WiFi</span>':''}
+              ${r.has_online_ordering?'<span class="feature-tag online-ordering small">💻 Online</span>':''}
+              ${r.has_catering?'<span class="feature-tag catering small">🍽️ Catering</span>':''}
+              ${r.has_drive_thru?'<span class="feature-tag dt small">🚗 Drive-Thru</span>':''}
             </div>
-            <div class="actions-section" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
-              <button class="contact-btn directions-btn" onclick='openDirections(${JSON.stringify(r.address||'')},${JSON.stringify(r.city||'')},${JSON.stringify(r.state||'')},${JSON.stringify(r.zip||'')})'>Directions</button>
+            <div class="actions-section list">
+              <button class="contact-btn directions-btn" data-address="${escAttr(r.address||'')}" data-city="${escAttr(r.city||'')}" data-state="${escAttr(r.state||'')}" data-zip="${escAttr(r.zip||'')}">Directions</button>
               ${r.phone_number?`<a href="tel:${String(r.phone_number).replace(/[^+0-9]/g,'')}" class="contact-btn call-btn">Call</a>`:''}
               ${doorDashUrl?`<a href="${doorDashUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn doordash-btn">DoorDash</a>`:''}
               ${uberEatsUrl?`<a href="${uberEatsUrl}" target="_blank" rel="noopener" class="action-btn delivery-btn ubereats-btn">Uber Eats</a>`:''}
@@ -535,21 +424,15 @@
       const btn = document.getElementById('locationBtn');
       const status = document.getElementById('geoStatus');
       if(!btn) return;
-      const icon = btn.querySelector('.location-icon');
-      const spinner = btn.querySelector('.location-spinner');
       if(isLoading){
         btn.classList.add('loading');
         btn.disabled = true;
         btn.setAttribute('aria-busy','true');
-        if(icon) icon.style.display='none';
-        if(spinner) spinner.style.display='inline-block';
         if(status) status.textContent = 'Locating…';
       } else {
         btn.classList.remove('loading');
         btn.disabled = false;
         btn.removeAttribute('aria-busy');
-        if(icon) icon.style.display='inline';
-        if(spinner) spinner.style.display='none';
         if(status) status.textContent = '';
       }
     }
@@ -557,6 +440,13 @@
     document.addEventListener('DOMContentLoaded', () => {
       setDarkMode(getInitialDarkMode());
       document.getElementById('darkModeToggle').addEventListener('click', () => setDarkMode(!document.body.classList.contains('dark')));
+      // Wire filter toggle without inline handlers (CSP-safe)
+      const filterToggleBtn = document.getElementById('filterToggleBtn');
+      if (filterToggleBtn) {
+        filterToggleBtn.addEventListener('click', () => {
+          toggleFilters();
+        });
+      }
       ['openNow','driveThru','open24h','companySelect'].forEach(id => {
         document.getElementById(id).addEventListener('change', () => { applyFilters(); if(window.innerWidth<=640){ closeFilters(); } });
       });
@@ -568,6 +458,14 @@
       try { const savedSort=localStorage.getItem('fastMealListSort'); if(savedSort){ const sel=document.getElementById('sortSelect'); if(['relevance','distance','name'].includes(savedSort)){ sel.value=savedSort; } } } catch(e){}
       document.getElementById('sortSelect').addEventListener('change', () => { sortData(); resetInfiniteScroll(); renderList(); });
       document.getElementById('locationBtn').addEventListener('click', requestGeolocation);
+      // Delegate Directions clicks (CSP-safe, covers dynamically rendered cards)
+      document.body.addEventListener('click', (e)=>{
+        const btn = e.target.closest('.directions-btn');
+        if(btn){
+          e.preventDefault();
+          openDirections(btn.dataset.address, btn.dataset.city, btn.dataset.state, btn.dataset.zip);
+        }
+      });
       const hambtn=document.getElementById('hamburgerBtn');
       const hamMenu=document.getElementById('hamburgerMenu');
       hambtn.addEventListener('click',(e)=>{ e.stopPropagation(); hamMenu.classList.toggle('open'); });
@@ -586,14 +484,6 @@
       }
     });
   </script>
-  <style>
-    /* Compact geolocation spinner overlay (list view now uses inline spinner markup; removed ::after) */
-    .location-btn.loading { opacity:.85; }
-    /* Spinner animation keyframes reused */
-    @keyframes fmf-spin { to { transform: rotate(360deg); } }
-    .visually-hidden { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); border:0; }
-    /* Keep same right offset on mobile as map view */
-    @media (max-width:640px){ .location-btn { right:10px; bottom:100px; } }
-  </style>
+  
 </body>
 </html>

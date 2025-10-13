@@ -1,9 +1,10 @@
-from flask import Flask, jsonify, render_template, request, send_from_directory, make_response, abort
+from flask import Flask, jsonify, render_template, request, send_from_directory, make_response, abort, g
 from datetime import datetime, time
 import requests
 import os
 from werkzeug.utils import secure_filename
 import re
+import secrets
 
 import json
 from pool_connection import DatabasePoolConnection
@@ -21,14 +22,65 @@ app = Flask(__name__, static_folder='static', static_url_path='/static',template
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
 db_connection = DatabasePoolConnection()
 
+# --- CSP nonce per request ---
+@app.before_request
+def set_csp_nonce():
+    # URL-safe base64-ish token
+    g.csp_nonce = secrets.token_urlsafe(16)
+
+# --- Security headers (anti-clickjacking, etc.) ---
+@app.after_request
+def add_security_headers(response):
+    try:
+        # Primary anti-clickjacking control (legacy but still honored by many UAs)
+        response.headers['X-Frame-Options'] = 'DENY'
+
+        # Complementary baseline security headers
+        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+        response.headers.setdefault('Referrer-Policy', 'no-referrer')
+        response.headers.setdefault('Cross-Origin-Opener-Policy', 'same-origin')
+        response.headers.setdefault('Cross-Origin-Resource-Policy', 'same-origin')
+        # Only request geolocation when explicitly triggered by the app
+        response.headers.setdefault('Permissions-Policy', 'geolocation=(self)')
+
+        nonce = getattr(g, 'csp_nonce', None)
+        if nonce:
+            csp = (
+                "default-src 'self'; "
+                "base-uri 'self'; "
+                "frame-ancestors 'none'; "
+                "object-src 'none'; "
+                "form-action 'self'; "
+                f"script-src 'self' 'nonce-{nonce}' https://www.googletagmanager.com https://www.google-analytics.com https://unpkg.com; "
+                "script-src-attr 'none'; "
+                f"style-src 'self' 'nonce-{nonce}' https://unpkg.com; "
+                "img-src 'self' data: https://*.basemaps.cartocdn.com; "
+                "font-src 'self' data:; "
+                "connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; "
+                "upgrade-insecure-requests"
+            )
+            response.headers['Content-Security-Policy'] = csp
+        else:
+            if 'Content-Security-Policy' not in response.headers:
+                response.headers['Content-Security-Policy'] = "frame-ancestors 'none'"
+    except Exception:
+        pass
+    return response
+
+@app.route('/static/<path:filename>')
+def static_with_csp(filename):
+    response = send_from_directory(app.static_folder, filename)
+    # Reuse the global header logic
+    return add_security_headers(response)
+
 @app.context_processor
 def inject_config():
     return {
         'google_analytics_id': os.getenv('GOOGLE_ANALYTICS_ID'),
+        'csp_nonce': getattr(g, 'csp_nonce', ''),
     }
 
 def safe_parse_json(val):
-    """Safely parse JSON string or return the value if already parsed"""
     try:
         return json.loads(val) if isinstance(val, str) else val
     except json.JSONDecodeError:
@@ -74,7 +126,6 @@ def convert_to_24hr(time_str):
         except ValueError:
             continue
     
-    #print(f"Warning: failed to parse time '{time_str}'")
     return None
 
 # --- New helper to robustly pre-clean raw hour range strings before regex matching ---
@@ -83,7 +134,6 @@ _SPACE_AMPM_RE = re.compile(r"\b(\d{1,2})(:?\d{0,2})\s+(am|pm)\b", re.IGNORECASE
 
 def preprocess_hours_string(raw: str) -> str:
     """Return a normalized hours string that is easier to parse.
-
     Steps:
       1. Trim & collapse internal excessive whitespace.
       2. Normalize hyphen spacing to " - ".
@@ -404,31 +454,20 @@ def disclaimer():
 
 @app.route('/static/images/logos/<path:company_name>')
 def serve_company_logo(company_name):
-    print(f"DEBUG: app.root_path = {app.root_path}")
-    print(f"DEBUG: Current working directory = {os.getcwd()}")
-    print(f"DEBUG: __file__ location = {os.path.dirname(os.path.abspath(__file__))}")
     logo_dir = os.path.join(app.root_path, 'static', 'images', 'logos')
-    print(f"DEBUG: Computed logo_dir = {logo_dir}")
-    print(f"DEBUG: logo_dir exists = {os.path.exists(logo_dir)}")
     
     # List what's actually in the directory
     if os.path.exists(logo_dir):
         files = os.listdir(logo_dir)
-        print(f"DEBUG: Files in logo_dir: {files[:10]}")  # Show first 10 files
-    
     raw_name = company_name.strip().lower().replace(" ", "-").replace("'", "").replace("&", "and")
     sanitized = secure_filename(raw_name)
     name, ext = os.path.splitext(sanitized)
 
-
-
-    # Debug: Print Accept header and sanitized name
     accept_header = request.headers.get('Accept', '')
     accepts_webp = 'image/webp' in accept_header
     
     tried_files = []
     
-    # Always try WebP first if browser supports it, regardless of what exists
     extensions = ['.webp', '.png', '.jpg'] if accepts_webp else ['.png', '.jpg']
 
     # Try each extension in order

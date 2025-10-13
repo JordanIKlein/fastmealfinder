@@ -11,7 +11,6 @@
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
   <!-- Viewport for Mobile -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Robots -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
@@ -24,23 +23,8 @@
   <meta name="twitter:title" content="Fast Meal Finder - Open Restaurants Near You">
   <meta name="twitter:description" content="See which restaurants are open now — including drive-thru and dine-in hours.">
   <meta name="twitter:image" content="https://fastmealfinder.com/static/images/icon.png"> <!-- Same image as above -->
-  <link rel="stylesheet" href="static/main.css">
-  <style>
-    .hamburger{position:fixed;top:10px;right:10px;z-index:1500;background:var(--btn-bg);color:var(--btn-text);border:none;border-radius:8px;padding:12px 16px;font-size:18px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px var(--filter-shadow);transition:background .25s,transform .15s;}
-    .hamburger:hover{background:var(--btn-hover-bg);} .hamburger:active{transform:scale(.92);} 
-    .hamburger-menu{position:fixed;top:60px;right:10px;z-index:1510;background:var(--filter-bg);border:1px solid var(--input-border);border-radius:12px;padding:8px 0;min-width:170px;box-shadow:0 10px 34px rgba(0,0,0,.35);opacity:0;transform:scale(.94);transform-origin:top right;pointer-events:none;transition:opacity .18s ease,transform .18s ease;} 
-    .hamburger-menu.open{opacity:1;transform:scale(1);pointer-events:auto;} 
-    .hamburger-menu a{display:block;padding:10px 20px;font-weight:600;font-size:14px;white-space:nowrap;text-decoration:none;color:var(--text-color);transition:background .2s,color .2s;} 
-    .hamburger-menu a:hover{background:var(--btn-hover-bg);color:var(--btn-text);} 
-    .filter-toggle{z-index:1500;} 
-    .filter-toggle .filter-badge{position:absolute;top:4px;right:4px;width:14px;height:14px;border-radius:50%;background:#dc3545;color:#fff;font-size:10px;display:none;align-items:center;justify-content:center;font-weight:700;box-shadow:0 0 0 2px var(--btn-bg);} 
-  .filter-toggle.has-active .filter-badge{display:flex;} body.dark .filter-toggle .filter-badge{background:#ff6b6b;} 
-  /* Geolocation compact spinner */
-  .location-btn.loading{opacity:.85;}
-  /* .location-btn.loading::after{content:"";position:absolute;width:18px;height:18px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:fmf-spin .7s linear infinite;} */
-  @keyframes fmf-spin{to{transform:rotate(360deg);}}
-  .visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0;}
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v='20251013') }}">
+  
 </head>
 
 <body>
@@ -57,47 +41,27 @@
       <div class="intro-content">
         <button id="closeIntroBtn" class="close-btn" aria-label="Close Introduction">&times;</button>
         <h2>Hungry Boston? We'll Find What's Open Right Now</h2>
-            <p style="font-family: Arial, sans-serif; line-height: 1.6;">
+            <p class="intro-copy">
             <strong>Never waste time driving to closed restaurants again.</strong>  
             Fast Meal Finder shows you exactly which spots are serving food this very moment, plus filters for drive-thru, 24-Hour locations, distance, and sorting by chain!  
             Your location data never leaves your device.  
             <br><br>
-            Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" style="color: #1a73e8; text-decoration: none;">OpenStreetMap</a> contributors.
+            Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" class="link-primary-clean">OpenStreetMap</a> contributors.
           </p>
       </div>
     </div>
-  <button class="filter-toggle" onclick="toggleFilters()">Filters<span class="filter-badge" id="filterBadge"></span></button>
+  <button class="filter-toggle" id="filterToggleBtn">Filters<span class="filter-badge" id="filterBadge"></span></button>
     <button class="dark-mode-toggle" id="darkModeToggle">☀︎</button>
     <button class="location-btn" id="locationBtn" aria-label="Use my location">
       <span class="location-icon">📍</span>
-      <span class="location-spinner" style="display:none;vertical-align:middle;">
-        <span style="display:inline-block;width:18px;height:18px;position:relative;">
-          <span style="position:absolute;top:0;left:0;width:18px;height:18px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:fmf-spin .7s linear infinite;"></span>
+      <span class="location-spinner">
+        <span class="location-spinner-wrap">
+          <span class="location-spinner-circle"></span>
         </span>
       </span>
     </button>
     <div id="geoStatus" class="visually-hidden" aria-live="polite"></div>
     <button class="hamburger" id="hamburgerBtn" aria-label="Menu">☰</button>
-    <!-- City dropdown commented out per request, logic retained in JS
-    <select class="city-dropdown" id="citySelect">
-      <option value="">Select City</option>
-      <option value="42.3601,-71.0589">Boston</option>
-      <option value="42.335547,-71.035581">Southie</option>
-      <option value="42.3875,-71.0995">Somerville</option>
-      <option value="42.328726,-71.082590">Roxbury</option>
-      <option value="42.355361,-71.132905">Allston</option>
-      <option value="42.349222,-71.153274">Brighton</option>
-      <option value="42.373237,-71.119694">Cambridge</option>
-      <option value="42.370112,-71.038750">East Boston</option>
-      <option value="42.25288,-71.00227">Quincy</option>
-      <option value="42.418280,-71.109779">Medford</option>
-      <option value="42.425936,-71.067386">Malden</option>
-      <option value="42.333454,-71.118856">Brookline</option>
-      <option value="42.414697,-71.151328">Arlington</option>
-      <option value="42.366133,-71.184950">Watertown</option>
-      <option value="42.298647,-71.061524">Dorchester</option>
-    </select>
-    -->
     <div class="hamburger-menu" id="hamburgerMenu">
       <a href="/list">List</a>
       <a href="/map">Map</a>
@@ -133,20 +97,20 @@
       </div>
 
       <div class="filter-actions">
-        <button class="filter-btn primary" onclick="applyFiltersAndClose()">Apply Filters</button>
-        <button class="filter-btn secondary" onclick="closeFilters()">Back</button>
+        <button class="filter-btn primary" id="applyFiltersBtn">Apply Filters</button>
+        <button class="filter-btn secondary" id="closeFiltersBtn">Back</button>
       </div>
     </div>
 
 
     <div id="map"></div>
     <!-- Custom Centered Popup Overlay -->
-    <div id="centeredPopupOverlay" class="centered-popup-overlay" style="display:none;">
+  <!-- <div id="centeredPopupOverlay" class="centered-popup-overlay">
       <div class="centered-popup-content">
-        <button class="centered-popup-close" onclick="closeCenteredPopup()" aria-label="Close popup">&times;</button>
+        <button class="centered-popup-close" id="centeredPopupCloseBtn" aria-label="Close popup">&times;</button>
         <div id="centeredPopupInner"></div>
       </div>
-    </div>
+    </div> -->
 
     <!-- Footer -->
     <footer class="footer">
@@ -178,7 +142,7 @@
               <polyline points="22,6 12,13 2,6"/>
             </svg>
           </button>
-          <a href="{{ url_for('disclaimer') }}" class="footer-link" style="align-self:center; margin-left:18px; font-size:14px; text-decoration:underline; color:inherit; line-height:1.2; display:inline-flex; align-items:center; height:36px;">Disclaimer and Privacy</a>
+          <a href="{{ url_for('disclaimer') }}" class="footer-link footer-privacy-link">Disclaimer and Privacy</a>
         </div>
       </div>
     </footer>
@@ -204,7 +168,7 @@
             >
             <button type="submit" class="signup-btn">
               <span class="btn-text">Subscribe</span>
-              <span class="btn-loading" style="display: none;">
+              <span class="btn-loading">
                 <svg class="spinner" width="16" height="16" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" opacity="0.3"/>
                   <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/>
@@ -222,7 +186,7 @@
     </div>
   </body>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
+  <script nonce="{{ csp_nonce }}">
     let markers = [];
     let map;
     let tileLayer;
@@ -444,21 +408,15 @@
       const btn = document.getElementById('locationBtn');
       const status = document.getElementById('geoStatus');
       if(!btn) return;
-      const icon = btn.querySelector('.location-icon');
-      const spinner = btn.querySelector('.location-spinner');
       if(isLoading){
         btn.classList.add('loading');
         btn.disabled = true;
         btn.setAttribute('aria-busy','true');
-        if(icon) icon.style.display = 'none';
-        if(spinner) spinner.style.display = 'inline-block';
         if(status) status.textContent = 'Locating…';
       } else {
         btn.classList.remove('loading');
         btn.disabled = false;
         btn.removeAttribute('aria-busy');
-        if(icon) icon.style.display = 'inline';
-        if(spinner) spinner.style.display = 'none';
         if(status) status.textContent = '';
       }
     }
@@ -592,12 +550,13 @@
       }
     }
     function filterData(data = allRestaurantData) {
-      const selectedCompany = document.getElementById('companySelect')?.value;
+      const selectedCompany = (document.getElementById('companySelect')?.value || '').trim();
       const onlyOpenNow = document.getElementById('openNow')?.checked;
       const onlyDriveThru = document.getElementById('driveThru')?.checked;
       const onlyOpen24h = document.getElementById('open24h')?.checked;
 
       return data.filter(item => {
+        // If 'All Restaurants' is selected (empty/whitespace), ignore company filter
         const companyMatch = !selectedCompany || item.company === selectedCompany;
         const driveThruMatch = !onlyDriveThru || item.has_drive_thru === true;
         const openNowMatch = !onlyOpenNow || item.open_now_dine_in === true || item.open_now_drive_thru === true;
@@ -754,8 +713,8 @@
         <div class="restaurant-card">
           <div class="card-header">
             <div class="header-main">
-              <div style="display:flex;align-items:center;justify-content:space-between;">
-                <h3 class="restaurant-name" style="margin-bottom:0;">${restaurant.company}</h3>
+              <div class="header-top-row">
+                <h3 class="restaurant-name mb-0">${restaurant.company}</h3>
                 ${distanceLabel ? distanceLabel : ''}
               </div>
               <div class="hours-info">
@@ -767,7 +726,7 @@
           </div>
           <div class="card-content">
             <div class="contact-section">
-              <button class="contact-btn directions-contact" onclick='getDirectionsRobust(${JSON.stringify(restaurant.address || "")}, ${JSON.stringify(restaurant.city || "")}, ${JSON.stringify(restaurant.state || "")}, ${JSON.stringify(restaurant.zip || "")})'>
+              <button class="contact-btn directions-contact" data-address="${(restaurant.address||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" data-city="${(restaurant.city||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" data-state="${(restaurant.state||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" data-zip="${(restaurant.zip||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}">
                 Directions
               </button>
               ${phone ? `
@@ -841,15 +800,13 @@
       const overlay = document.getElementById('centeredPopupOverlay');
       const inner = document.getElementById('centeredPopupInner');
       inner.innerHTML = createModernPopup(restaurant);
-      overlay.style.display = 'flex';
-      document.body.style.overflow = 'hidden';
+      overlay.classList.add('show');
       window.lastRestaurantForPopup = restaurant;
     }
 
     function closeCenteredPopup() {
       const overlay = document.getElementById('centeredPopupOverlay');
-      overlay.style.display = 'none';
-      document.body.style.overflow = '';
+      overlay.classList.remove('show');
     }
 
     // Optimized marker creation with delayed image loading
@@ -865,28 +822,10 @@
         return L.divIcon({
           className: 'custom-logo-icon',
           html: `
-            <div class="logo-marker-container" style="
-              width: ${size}px; height: ${size}px; position: relative;
-              transition: all 0.3s ease;
-            ">
-              <div class="logo-marker" style="
-                width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
-                background-color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-                display: flex; align-items: center; justify-content: center;
-                border: 3px solid ${baseColor}; opacity: ${opacity};
-                position: relative; transition: all 0.3s ease;
-              ">
-                <img src="${logoUrl}" alt="${company}" style="
-                  width: 100%; height: 100%; object-fit: contain;
-                  ${!isOpen ? 'filter: grayscale(30%);' : ''}
-                  transition: opacity 0.3s ease;
-                " loading="lazy">
-                <div class="status-indicator" style="
-                  position: absolute; top: -3px; right: -3px; width: 10px; height: 10px;
-                  background: ${baseColor}; border: 2px solid white;
-                  border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-                  ${isOpen ? 'animation: pulse-dot 2s infinite;' : ''}
-                "></div>
+            <div class="logo-marker-container">
+              <div class="logo-marker ${isOpen ? 'open' : 'closed'}">
+                <img src="${logoUrl}" alt="${company}" loading="lazy">
+                <div class="status-indicator ${isOpen ? 'pulse' : ''}"></div>
               </div>
             </div>
           `,
@@ -899,20 +838,8 @@
         return L.divIcon({
           className: 'custom-logo-icon',
           html: `
-            <div class="logo-marker-container" style="
-              width: ${size}px; height: ${size}px; position: relative;
-              transition: all 0.3s ease;
-            ">
-              <div class="circle-marker" style="
-                width: 100%; height: 100%; border-radius: 50%;
-                background: ${baseColor}; opacity: ${opacity};
-                display: flex; align-items: center; justify-content: center;
-                color: white; font-weight: bold; font-size: 14px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-                border: 2px solid white;
-                transition: all 0.3s ease;
-                ${isOpen ? 'animation: pulse-circle 2s infinite;' : ''}
-              ">
+            <div class="logo-marker-container">
+              <div class="circle-marker ${isOpen ? 'open pulse' : 'closed'}">
                 ${initial}
               </div>
             </div>
@@ -1184,7 +1111,7 @@
       setDarkMode(!isDark);
       // If a centered popup is open, re-render its content so text colors adapt
       const overlay = document.getElementById('centeredPopupOverlay');
-      if (overlay && overlay.style.display !== 'none' && window.lastRestaurantForPopup) {
+      if (overlay && overlay.classList.contains('show') && window.lastRestaurantForPopup) {
         const inner = document.getElementById('centeredPopupInner');
         if (inner) inner.innerHTML = createModernPopup(window.lastRestaurantForPopup);
       }
@@ -1205,6 +1132,11 @@
     }
   // Updated DOMContentLoaded to prioritize correct filter defaults before data load
   document.addEventListener('DOMContentLoaded', () => {
+      // Hard-close the centered popup overlay in case it was left open or CSP blocked earlier listeners
+      try {
+        const overlayEl = document.getElementById('centeredPopupOverlay');
+        if (overlayEl) overlayEl.classList.remove('show');
+      } catch(_) {}
       function getInitialDarkMode() {
         const savedMode = localStorage.getItem('fastMealDarkMode');
         if (savedMode !== null) {
@@ -1239,6 +1171,31 @@
       //test
       // Setup event listeners
       document.getElementById('darkModeToggle').addEventListener('click', toggleDarkMode);
+      // Wire filter toggle without inline handlers (CSP-safe)
+      const filterToggleBtn = document.getElementById('filterToggleBtn');
+      if (filterToggleBtn) {
+        filterToggleBtn.addEventListener('click', () => {
+          toggleFilters();
+        });
+      }
+      // Wire filter panel buttons (CSP-safe)
+      const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+      if (applyFiltersBtn) {
+        applyFiltersBtn.addEventListener('click', () => {
+          applyFiltersAndClose();
+        });
+      }
+      const closeFiltersBtn = document.getElementById('closeFiltersBtn');
+      if (closeFiltersBtn) {
+        closeFiltersBtn.addEventListener('click', () => {
+          closeFilters();
+        });
+      }
+      // Wire centered popup close button (CSP-safe)
+      const centeredCloseBtn = document.getElementById('centeredPopupCloseBtn');
+      if (centeredCloseBtn) {
+        centeredCloseBtn.addEventListener('click', closeCenteredPopup);
+      }
   function updateFilterBadge(){
     const btn=document.querySelector('.filter-toggle'); if(!btn) return;
     const hasActive = (!document.getElementById('openNow').checked) || document.getElementById('driveThru').checked || document.getElementById('open24h').checked || document.getElementById('companySelect').value;
@@ -1247,10 +1204,24 @@
   document.getElementById('openNow').addEventListener('change', () => { saveFilters(); applyFilters(); updateFilterBadge(); if(window.innerWidth<=640){ closeFilters(); } });
       document.getElementById('driveThru').addEventListener('change', ()=>{ applyFilters(); updateFilterBadge(); if(window.innerWidth<=640){ closeFilters(); } });
       document.getElementById('open24h').addEventListener('change', ()=>{ applyFilters(); updateFilterBadge(); if(window.innerWidth<=640){ closeFilters(); } });
-      document.getElementById('companySelect').addEventListener('change', ()=>{ applyFilters(); updateFilterBadge(); if(window.innerWidth<=640){ closeFilters(); } });
-        // If user focuses the dropdown before we've globally loaded all companies, fetch full list
-        document.getElementById('companySelect').addEventListener('focus', ()=>{ if(!companiesLoadedGlobally){ populateCompaniesFromAllData(); } });
+      document.getElementById('companySelect').addEventListener('change', ()=>{ 
+        // Save selection first so dropdown repopulation doesn't restore a previous company
+        saveFilters(); 
+        applyFilters(); 
+        updateFilterBadge(); 
+        if(window.innerWidth<=640){ closeFilters(); } 
+      });
+  // Avoid repopulating the dropdown while the user is interacting with it, to prevent selection issues
+  // We already trigger a global populate shortly after load; remove focus-triggered repopulation.
       document.getElementById('locationBtn').addEventListener('click', useMyLocation);
+      // Delegate Directions clicks inside map popups/overlay
+      document.body.addEventListener('click', (e)=>{
+        const btn = e.target.closest('.directions-contact');
+        if(btn){
+          e.preventDefault();
+          getDirectionsRobust(btn.dataset.address, btn.dataset.city, btn.dataset.state, btn.dataset.zip);
+        }
+      });
   const citySelectEl = document.getElementById('citySelect');
   if (citySelectEl) { citySelectEl.addEventListener('change', handleCityChange); }
   const hamburgerBtn = document.getElementById('hamburgerBtn');
@@ -1271,20 +1242,20 @@
       }
       
       // Modal setup
-      const introModal = document.getElementById('introModal');
+  const introModal = document.getElementById('introModal');
       const closeBtn = document.getElementById('closeIntroBtn');
-      introModal.style.display = 'none';
+  introModal.classList.remove('show');
 
       try {
         if (!localStorage.getItem('fastMealIntroDismissed')) {
-          introModal.style.display = 'block';
+          introModal.classList.add('show');
         }
       } catch (e) {
-        introModal.style.display = 'block';
+        introModal.classList.add('show');
       }
 
       closeBtn.addEventListener('click', () => {
-        introModal.style.display = 'none';
+        introModal.classList.remove('show');
         try {
           localStorage.setItem('fastMealIntroDismissed', 'true');
         } catch (e) {
@@ -1318,7 +1289,7 @@ window.applyFilters = applyFilters;
 
 
 
-<script>
+<script nonce="{{ csp_nonce }}">
   // Modal functionality
   const modal = document.getElementById('emailModal');
   const emailBtn = document.querySelector('.email-signup-btn');
@@ -1327,7 +1298,6 @@ window.applyFilters = applyFilters;
   // Open modal
   emailBtn.addEventListener('click', () => {
     modal.classList.add('show');
-    document.body.style.overflow = 'hidden';
     // Focus on email input after modal opens
     setTimeout(() => {
       document.getElementById('emailInput').focus();
@@ -1337,7 +1307,6 @@ window.applyFilters = applyFilters;
   // Close modal
   function closeModal() {
     modal.classList.remove('show');
-    document.body.style.overflow = '';
     // Clear form
     document.getElementById('emailInput').value = '';
     const message = document.getElementById('signupMessage');
@@ -1383,10 +1352,9 @@ window.applyFilters = applyFilters;
       return;
     }
     
-    // Show loading state
-    submitBtn.disabled = true;
-    btnText.style.display = 'none';
-    btnLoading.style.display = 'inline-flex';
+  // Show loading state (class-based, CSP-safe)
+  submitBtn.disabled = true;
+  submitBtn.classList.add('is-loading');
     
     try {
       // Replace this with your actual API call
@@ -1413,8 +1381,7 @@ window.applyFilters = applyFilters;
     } finally {
       // Reset button state
       submitBtn.disabled = false;
-      btnText.style.display = 'inline';
-      btnLoading.style.display = 'none';
+      submitBtn.classList.remove('is-loading');
     }
   });
   
@@ -1434,7 +1401,7 @@ window.applyFilters = applyFilters;
 </script>
 <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_id }}"></script>
-  <script>
+  <script nonce="{{ csp_nonce }}">
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
